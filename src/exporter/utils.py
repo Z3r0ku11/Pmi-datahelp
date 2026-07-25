@@ -1,0 +1,58 @@
+import unicodedata
+from typing import Any
+
+
+def normalize_text(value: str | None) -> str:
+    if not value:
+        return ""
+
+    normalized = unicodedata.normalize("NFKD", value)
+
+    without_accents = "".join(
+        character
+        for character in normalized
+        if not unicodedata.combining(character)
+    )
+
+    return " ".join(
+        without_accents.lower().strip().split()
+    )
+
+
+def get_custom_field_value(
+    custom_fields: list[dict[str, Any]],
+    field_name: str,
+) -> str:
+    normalized_target = normalize_text(field_name)
+
+    for custom_field in custom_fields:
+        current_name = normalize_text(
+            custom_field.get("name")
+        )
+
+        if current_name != normalized_target:
+            continue
+
+        display_value = custom_field.get("display_value")
+
+        if display_value not in (None, ""):
+            return str(display_value).strip()
+
+        enum_value = custom_field.get("enum_value")
+
+        if enum_value:
+            return str(
+                enum_value.get("name", "")
+            ).strip()
+
+        text_value = custom_field.get("text_value")
+
+        if text_value not in (None, ""):
+            return str(text_value).strip()
+
+        number_value = custom_field.get("number_value")
+
+        if number_value is not None:
+            return str(number_value)
+
+    return ""

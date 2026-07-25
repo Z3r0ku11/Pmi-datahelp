@@ -1,0 +1,14 @@
+{
+  "fileLocations": [
+    {
+      "URIPrefixes": [
+        "s3://pmo-asana-analytics/projects/"
+      ]
+    }
+  ],
+  "globalUploadSettings": {
+    "format": "CSV",
+    "delimiter": ",",
+    "containsHeader": "true"
+  }
+}
