@@ -1,0 +1,279 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Secure authentication and registered-user embedding for the PMO portal.
+
+Parameters:
+  DashboardId:
+    Type: String
+    Default: pmo-executive-dashboard-v2
+
+  QuickSightUserArn:
+    Type: String
+
+  PortalUserEmail:
+    Type: String
+
+  DevPortalUrl:
+    Type: String
+
+  ProdPortalUrl:
+    Type: String
+
+Resources:
+  PortalUserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: pmo-executive-portal-users
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 7
+      UserPoolTags:
+        Application: PMO-Executive-Portal
+
+  PortalUser:
+    Type: AWS::Cognito::UserPoolUser
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      DesiredDeliveryMediums:
+        - EMAIL
+      UserAttributes:
+        - Name: email
+          Value: !Ref PortalUserEmail
+        - Name: email_verified
+          Value: "true"
+      Username: !Ref PortalUserEmail
+      UserPoolId: !Ref PortalUserPool
+
+  PortalUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub pmo-executive-${AWS::AccountId}
+      UserPoolId: !Ref PortalUserPool
+
+  PortalUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref PortalUserPool
+      ClientName: pmo-executive-cloudfront
+      GenerateSecret: false
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      CallbackURLs:
+        - !Sub ${DevPortalUrl}/
+        - !Sub ${ProdPortalUrl}/
+      LogoutURLs:
+        - !Sub ${DevPortalUrl}/
+        - !Sub ${ProdPortalUrl}/
+      SupportedIdentityProviders:
+        - COGNITO
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 1
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+
+  EmbedFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-executive-embed-url
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GenerateRegisteredUserEmbedUrl
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - quicksight:GenerateEmbedUrlForRegisteredUser
+                Resource:
+                  - !Ref QuickSightUserArn
+                  - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dashboard/${DashboardId}
+
+  EmbedFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: pmo-executive-embed-url
+      Description: Generates short-lived QuickSight URLs for the authenticated PMO user.
+      Runtime: python3.12
+      Handler: index.handler
+      MemorySize: 128
+      Timeout: 10
+      Role: !GetAtt EmbedFunctionRole.Arn
+      Environment:
+        Variables:
+          AWS_ACCOUNT_ID: !Ref AWS::AccountId
+          DASHBOARD_ID: !Ref DashboardId
+          QUICKSIGHT_USER_ARN: !Ref QuickSightUserArn
+          ALLOWED_ORIGINS: !Sub ${DevPortalUrl},${ProdPortalUrl}
+      Code:
+        ZipFile: |
+          import json
+          import os
+
+          import boto3
+
+
+          quicksight = boto3.client("quicksight")
+          allowed_origins = {
+              value.rstrip("/")
+              for value in os.environ["ALLOWED_ORIGINS"].split(",")
+          }
+
+
+          def response(status_code, body, origin):
+              headers = {
+                  "content-type": "application/json",
+                  "cache-control": "no-store",
+              }
+              if origin in allowed_origins:
+                  headers["access-control-allow-origin"] = origin
+                  headers["vary"] = "origin"
+              return {
+                  "statusCode": status_code,
+                  "headers": headers,
+                  "body": json.dumps(body),
+              }
+
+
+          def handler(event, context):
+              del context
+              origin = (
+                  event.get("headers", {}).get("origin")
+                  or event.get("headers", {}).get("Origin")
+                  or ""
+              ).rstrip("/")
+
+              if origin not in allowed_origins:
+                  return response(403, {"message": "Origin not allowed."}, origin)
+
+              result = quicksight.generate_embed_url_for_registered_user(
+                  AwsAccountId=os.environ["AWS_ACCOUNT_ID"],
+                  UserArn=os.environ["QUICKSIGHT_USER_ARN"],
+                  SessionLifetimeInMinutes=60,
+                  AllowedDomains=[origin],
+                  ExperienceConfiguration={
+                      "Dashboard": {
+                          "InitialDashboardId": os.environ["DASHBOARD_ID"]
+                      }
+                  },
+              )
+              return response(
+                  200,
+                  {
+                      "embedUrl": result["EmbedUrl"],
+                      "expiresIn": 300,
+                  },
+                  origin,
+              )
+
+  EmbedApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: pmo-executive-embed-api
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowCredentials: false
+        AllowHeaders:
+          - authorization
+          - content-type
+        AllowMethods:
+          - GET
+          - OPTIONS
+        AllowOrigins:
+          - !Ref DevPortalUrl
+          - !Ref ProdPortalUrl
+        MaxAge: 300
+
+  EmbedIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref EmbedApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt EmbedFunction.Arn
+      PayloadFormatVersion: "2.0"
+      TimeoutInMillis: 10000
+
+  EmbedAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref EmbedApi
+      AuthorizerType: JWT
+      Name: pmo-cognito
+      IdentitySource:
+        - $request.header.Authorization
+      JwtConfiguration:
+        Audience:
+          - !Ref PortalUserPoolClient
+        Issuer: !GetAtt PortalUserPool.ProviderURL
+
+  EmbedRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref EmbedApi
+      RouteKey: GET /embed-url
+      AuthorizationType: JWT
+      AuthorizerId: !Ref EmbedAuthorizer
+      Target: !Sub integrations/${EmbedIntegration}
+
+  EmbedStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref EmbedApi
+      StageName: $default
+      AutoDeploy: true
+
+  EmbedFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref EmbedFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${EmbedApi}/*/GET/embed-url
+
+Outputs:
+  UserPoolId:
+    Value: !Ref PortalUserPool
+
+  UserPoolClientId:
+    Value: !Ref PortalUserPoolClient
+
+  CognitoDomain:
+    Value: !Sub https://${PortalUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com
+
+  EmbedApiUrl:
+    Value: !Sub https://${EmbedApi}.execute-api.${AWS::Region}.amazonaws.com/embed-url
+
+  PortalUserEmail:
+    Value: !Ref PortalUserEmail

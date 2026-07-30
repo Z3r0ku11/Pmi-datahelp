@@ -68,7 +68,7 @@ def _get_project_managers() -> tuple[str, ...]:
 class Settings:
     aws_region: str = os.getenv(
         "AWS_REGION",
-        "us-east-2",
+        "us-east-1",
     )
 
     secret_name: str = os.getenv(
@@ -88,7 +88,7 @@ class Settings:
 
     s3_bucket: str = os.getenv(
         "S3_BUCKET",
-        "pmo-asana-analytics",
+        "pmo-asana-analytics-us-east-1-664858858204",
     )
 
     projects_key: str = os.getenv(
@@ -104,6 +104,16 @@ class Settings:
     project_metrics_key: str = os.getenv(
         "PROJECT_METRICS_KEY",
         "project_metrics/project_metrics.csv",
+    )
+
+    project_health_history_prefix: str = os.getenv(
+        "PROJECT_HEALTH_HISTORY_PREFIX",
+        "history/project_health",
+    )
+
+    portfolio_health_history_prefix: str = os.getenv(
+        "PORTFOLIO_HEALTH_HISTORY_PREFIX",
+        "history/portfolio_health",
     )
 
     output_directory: str = os.getenv(

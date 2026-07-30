@@ -1,14 +1,15 @@
 {
   "fileLocations": [
     {
-      "URIPrefixes": [
-        "s3://pmo-asana-analytics-us-east-1-664858858204/projects/"
+      "URIs": [
+        "s3://pmo-asana-analytics-us-east-1-664858858204/project_metrics/project_metrics.csv"
       ]
     }
   ],
   "globalUploadSettings": {
     "format": "CSV",
     "delimiter": ",",
+    "textqualifier": "\"",
     "containsHeader": "true"
   }
 }

@@ -58,6 +58,8 @@ class AsanaClient:
             "custom_fields.display_value",
             "custom_fields.text_value",
             "custom_fields.number_value",
+            "custom_fields.date_value.date",
+            "custom_fields.date_value.date_time",
             "custom_fields.enum_value.gid",
             "custom_fields.enum_value.name",
             "custom_fields.multi_enum_values.gid",

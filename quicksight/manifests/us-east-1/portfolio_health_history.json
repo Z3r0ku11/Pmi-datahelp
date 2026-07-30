@@ -2,13 +2,14 @@
   "fileLocations": [
     {
       "URIPrefixes": [
-        "s3://pmo-asana-analytics-us-east-1-664858858204/projects/"
+        "s3://pmo-asana-analytics-us-east-1-664858858204/history/portfolio_health/"
       ]
     }
   ],
   "globalUploadSettings": {
     "format": "CSV",
     "delimiter": ",",
+    "textqualifier": "\"",
     "containsHeader": "true"
   }
 }
