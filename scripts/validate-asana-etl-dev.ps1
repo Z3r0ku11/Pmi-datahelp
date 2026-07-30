@@ -60,6 +60,7 @@ $errorCount = Invoke-Aws logs filter-log-events `
     --region $Region `
     --log-group-name $logGroupName `
     --filter-pattern "ERROR" `
+    --no-paginate `
     --query "length(events)" `
     --output text
 
