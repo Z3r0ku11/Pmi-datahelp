@@ -56,6 +56,34 @@ jobs:
           docker push "${REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
           docker push "${REGISTRY}/${ECR_REPOSITORY}:latest"
 
+      - name: Enforce ECR critical vulnerability gate
+        run: |
+          set -euo pipefail
+          aws ecr wait image-scan-complete \
+            --repository-name "${ECR_REPOSITORY}" \
+            --image-id "imageTag=${GITHUB_SHA}"
+
+          critical="$(
+            aws ecr describe-image-scan-findings \
+              --repository-name "${ECR_REPOSITORY}" \
+              --image-id "imageTag=${GITHUB_SHA}" \
+              --query "imageScanFindings.findingSeverityCounts.CRITICAL" \
+              --output text
+          )"
+          high="$(
+            aws ecr describe-image-scan-findings \
+              --repository-name "${ECR_REPOSITORY}" \
+              --image-id "imageTag=${GITHUB_SHA}" \
+              --query "imageScanFindings.findingSeverityCounts.HIGH" \
+              --output text
+          )"
+          [ "${critical}" = "None" ] && critical=0
+          [ "${high}" = "None" ] && high=0
+
+          echo "Critical findings: ${critical}"
+          echo "High findings: ${high}"
+          test "${critical}" -eq 0
+
       - name: Run isolated DEV task
         if: ${{ inputs.run_task }}
         id: run
