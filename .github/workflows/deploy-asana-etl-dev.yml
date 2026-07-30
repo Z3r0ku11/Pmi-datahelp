@@ -89,9 +89,23 @@ jobs:
           echo "cluster=${cluster}" >> "${GITHUB_OUTPUT}"
           echo "task_arn=${task_arn}" >> "${GITHUB_OUTPUT}"
 
-          aws ecs wait tasks-stopped \
-            --cluster "${cluster}" \
-            --tasks "${task_arn}"
+          stopped=false
+          for attempt in $(seq 1 900)
+          do
+            status="$(
+              aws ecs describe-tasks \
+                --cluster "${cluster}" \
+                --tasks "${task_arn}" \
+                --query "tasks[0].lastStatus" \
+                --output text
+            )"
+            if [ "${status}" = "STOPPED" ]; then
+              stopped=true
+              break
+            fi
+            sleep 10
+          done
+          test "${stopped}" = "true"
 
           exit_code="$(
             aws ecs describe-tasks \
