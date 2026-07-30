@@ -59,6 +59,10 @@ jobs:
       - name: Enforce ECR critical vulnerability gate
         run: |
           set -euo pipefail
+          aws ecr start-image-scan \
+            --repository-name "${ECR_REPOSITORY}" \
+            --image-id "imageTag=${GITHUB_SHA}" \
+            > /dev/null
           aws ecr wait image-scan-complete \
             --repository-name "${ECR_REPOSITORY}" \
             --image-id "imageTag=${GITHUB_SHA}"
