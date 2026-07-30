@@ -456,8 +456,8 @@ Resources:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
                 token.actions.githubusercontent.com:sub:
-                  - repo:Z3r0ku11/pmo-intelligence-platform:ref:refs/heads/main
-                  - repo:Z3r0ku11/pmo-intelligence-platform:ref:refs/heads/codex/fargate-dev-pilot
+                  - >-
+                    repo:Z3r0ku11@128507805/pmo-intelligence-platform@1317562141:ref:refs/heads/main
       Policies:
         - PolicyName: publish-and-run-dev-etl
           PolicyDocument:
