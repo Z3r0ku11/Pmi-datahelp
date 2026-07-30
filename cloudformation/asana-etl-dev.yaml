@@ -471,6 +471,8 @@ Resources:
                 Action:
                   - ecr:BatchCheckLayerAvailability
                   - ecr:CompleteLayerUpload
+                  - ecr:DescribeImageScanFindings
+                  - ecr:DescribeImages
                   - ecr:GetDownloadUrlForLayer
                   - ecr:InitiateLayerUpload
                   - ecr:PutImage
