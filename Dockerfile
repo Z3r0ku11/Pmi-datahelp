@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm
+FROM python:3.12.13-alpine3.22
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -11,8 +11,8 @@ RUN python -m pip install --no-cache-dir --requirement requirements.txt
 
 COPY src/exporter/ ./
 
-RUN groupadd --system --gid 10001 pmo \
-    && useradd --system --uid 10001 --gid pmo pmo \
+RUN addgroup -S -g 10001 pmo \
+    && adduser -S -D -H -u 10001 -G pmo pmo \
     && mkdir -p "${OUTPUT_DIRECTORY}" \
     && chown -R pmo:pmo /app "${OUTPUT_DIRECTORY}"
 
