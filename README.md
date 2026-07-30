@@ -54,6 +54,29 @@ el token desde AWS Secrets Manager.
 - Portal DEV: CloudFront
 - Portal PROD: CloudFront
 - QuickSight: Enterprise, usuario administrador estándar
+- ETL DEV: ECS Fargate efímero, bucket aislado y calendario deshabilitado
+
+## Despliegue del ETL en DEV
+
+El piloto de Asana se despliega sin modificar el bucket ni el dataset de
+producción:
+
+```powershell
+.\scripts\deploy-asana-etl-dev.ps1 -InfrastructureOnly
+.\scripts\deploy-asana-etl-dev.ps1
+.\scripts\deploy-asana-etl-dev.ps1 -RunTask
+.\scripts\validate-asana-etl-dev.ps1
+```
+
+El despliegue requiere una sesión AWS válida y Docker Desktop iniciado. El
+script crea un bucket con el patrón
+`pmo-intelligence-platform-dev-<cuenta>-us-east-1`, conserva las rutas
+contractuales de los CSV y deja EventBridge Scheduler deshabilitado.
+
+Cuando no existe un motor Docker Linux local, el workflow manual
+`Deploy Asana ETL DEV` construye y publica la imagen mediante GitHub Actions.
+La autenticación usa OIDC y credenciales temporales; no requiere Access Keys
+en GitHub.
 
 ## Piloto de Intelligence
 

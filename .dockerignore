@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+__pycache__
+*.pyc
+*.csv
+*.log
+*.zip
+.env
+.env.*
+backups
+data
+docs
+output
+portal
+quicksight
+tests

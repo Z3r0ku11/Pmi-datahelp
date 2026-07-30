@@ -1,0 +1,529 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: PMO-IP Asana ETL pilot resources isolated in DEV.
+
+Parameters:
+  DataBucketName:
+    Type: String
+    Description: Dedicated DEV bucket. Must not be the production data bucket.
+  ContainerImageTag:
+    Type: String
+    Default: latest
+    AllowedPattern: "[A-Za-z0-9_.-]+"
+  SecretName:
+    Type: String
+    Default: pmo/asana
+  AsanaWorkspaceId:
+    Type: String
+    Default: "677426918442017"
+  AsanaPortfolioId:
+    Type: String
+    Default: "1207850474099261"
+  ScheduleExpression:
+    Type: String
+    Default: "cron(0 10 * * ? *)"
+    Description: UTC schedule. The DEV schedule is created disabled.
+
+Resources:
+  DevVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.42.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: pmo-ip-dev
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: pmo-ip-dev
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref DevVpc
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: 10.42.1.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref DevVpc
+      Tags:
+        - Key: Name
+          Value: pmo-ip-dev-public-a
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: 10.42.2.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref DevVpc
+      Tags:
+        - Key: Name
+          Value: pmo-ip-dev-public-b
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref DevVpc
+      Tags:
+        - Key: Name
+          Value: pmo-ip-dev-public
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetA
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetB
+
+  DataBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref DataBucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  ContainerRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: pmo-ip/asana-exporter-dev
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      ImageTagMutability: MUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep the ten most recent images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": {"type": "expire"}
+              }
+            ]
+          }
+      Tags:
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: pmo-ip-dev
+      ClusterSettings:
+        - Name: containerInsights
+          Value: disabled
+      Tags:
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /pmo-ip/dev/asana-exporter
+      RetentionInDays: 7
+      Tags:
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Outbound HTTPS for the isolated PMO-IP DEV ETL.
+      VpcId: !Ref DevVpc
+      SecurityGroupEgress:
+        - Description: HTTPS to Asana and AWS public endpoints
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: pmo-ip-dev-asana-etl
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-ip-dev-asana-etl-execution
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: pull-image-and-write-logs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: !GetAtt ContainerRepository.Arn
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "${LogGroup.Arn}:*"
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-ip-dev-asana-etl-task
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: read-asana-secret-and-publish-dev-data
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}*
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource: !GetAtt DataBucket.Arn
+              - Effect: Allow
+                Action:
+                  - s3:AbortMultipartUpload
+                  - s3:PutObject
+                Resource: !Sub "${DataBucket.Arn}/*"
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: pmo-ip-dev-asana-exporter
+      Cpu: "1024"
+      Memory: "2048"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+      ContainerDefinitions:
+        - Name: asana-exporter
+          Essential: true
+          Image: !Sub "${ContainerRepository.RepositoryUri}:${ContainerImageTag}"
+          Environment:
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: SECRET_NAME
+              Value: !Ref SecretName
+            - Name: ASANA_WORKSPACE_ID
+              Value: !Ref AsanaWorkspaceId
+            - Name: ASANA_PORTFOLIO_ID
+              Value: !Ref AsanaPortfolioId
+            - Name: S3_BUCKET
+              Value: !Ref DataBucket
+            - Name: PROJECTS_KEY
+              Value: projects/projects.csv
+            - Name: TASKS_KEY
+              Value: tasks/tasks.csv
+            - Name: PROJECT_METRICS_KEY
+              Value: project_metrics/project_metrics.csv
+            - Name: PROJECT_HEALTH_HISTORY_PREFIX
+              Value: history/project_health
+            - Name: PORTFOLIO_HEALTH_HISTORY_PREFIX
+              Value: history/portfolio_health
+            - Name: OUTPUT_DIRECTORY
+              Value: /tmp/pmo-export
+            - Name: PMO_ENVIRONMENT
+              Value: dev
+            - Name: PMO_GIT_SHA
+              Value: !Ref ContainerImageTag
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+      Tags:
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  SchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-ip-dev-asana-etl-scheduler
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - scheduler.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: run-dev-etl
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:RunTask
+                Resource: !Ref TaskDefinition
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !GetAtt Cluster.Arn
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt TaskExecutionRole.Arn
+                  - !GetAtt TaskRole.Arn
+
+  Schedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: pmo-ip-dev-asana-etl
+      Description: Disabled-by-default schedule for the PMO-IP DEV ETL.
+      State: DISABLED
+      ScheduleExpression: !Ref ScheduleExpression
+      ScheduleExpressionTimezone: America/Santiago
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt Cluster.Arn
+        RoleArn: !GetAtt SchedulerRole.Arn
+        EcsParameters:
+          EnableECSManagedTags: true
+          EnableExecuteCommand: false
+          LaunchType: FARGATE
+          PlatformVersion: LATEST
+          TaskCount: 1
+          TaskDefinitionArn: !Ref TaskDefinition
+          NetworkConfiguration:
+            AwsvpcConfiguration:
+              AssignPublicIp: ENABLED
+              SecurityGroups:
+                - !Ref TaskSecurityGroup
+              Subnets:
+                - !Ref PublicSubnetA
+                - !Ref PublicSubnetB
+
+  ErrorMetric:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroup
+      FilterPattern: "ERROR"
+      MetricTransformations:
+        - MetricName: AsanaEtlErrors
+          MetricNamespace: PMO-IP/DEV
+          MetricValue: "1"
+          DefaultValue: 0
+
+  ErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: pmo-ip-dev-asana-etl-errors
+      AlarmDescription: Detects error log entries in the DEV Asana ETL.
+      Namespace: PMO-IP/DEV
+      MetricName: AsanaEtlErrors
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      Tags:
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  GitHubDevDeploymentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-ip-github-dev-deployment
+      MaxSessionDuration: 7200
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !GetAtt GitHubOidcProvider.Arn
+            Action:
+              - sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub:
+                  - repo:Z3r0ku11/pmo-intelligence-platform:ref:refs/heads/main
+                  - repo:Z3r0ku11/pmo-intelligence-platform:ref:refs/heads/codex/fargate-dev-pilot
+      Policies:
+        - PolicyName: publish-and-run-dev-etl
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                Resource: !GetAtt ContainerRepository.Arn
+              - Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                Resource: !Ref AWS::StackId
+              - Effect: Allow
+                Action:
+                  - ecs:DescribeTasks
+                  - ecs:RunTask
+                Resource:
+                  - !Ref TaskDefinition
+                  - !Sub >-
+                    arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/*
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt TaskExecutionRole.Arn
+                  - !GetAtt TaskRole.Arn
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: ecs-tasks.amazonaws.com
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub "${DataBucket.Arn}/projects/projects.csv"
+                  - !Sub "${DataBucket.Arn}/tasks/tasks.csv"
+                  - !Sub "${DataBucket.Arn}/project_metrics/project_metrics.csv"
+
+Outputs:
+  DataBucketName:
+    Value: !Ref DataBucket
+  RepositoryUri:
+    Value: !GetAtt ContainerRepository.RepositoryUri
+  ClusterName:
+    Value: !Ref Cluster
+  TaskDefinitionArn:
+    Value: !Ref TaskDefinition
+  SecurityGroupId:
+    Value: !Ref TaskSecurityGroup
+  SubnetIds:
+    Value: !Join
+      - ","
+      - - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+  LogGroupName:
+    Value: !Ref LogGroup
+  ScheduleName:
+    Value: !Ref Schedule
+  GitHubDeploymentRoleArn:
+    Value: !GetAtt GitHubDevDeploymentRole.Arn

@@ -64,11 +64,28 @@ Se utilizará Fargate porque la ejecución completa puede superar el límite de
 - Security Group sin reglas de entrada.
 - Acceso saliente HTTPS.
 - Secreto existente `pmo/asana`.
-- Bucket S3 existente.
+- Bucket S3 DEV aislado; el bucket contractual actual se mantiene sin cambios.
 - CloudWatch Logs.
 
 Para evitar el costo permanente de un NAT Gateway, el piloto usará una tarea
 Fargate efímera con conectividad pública saliente y sin puertos de entrada.
+El stack DEV incluye una VPC mínima, dos subredes públicas y un Internet
+Gateway porque la VPC existente de Control Tower solo posee subredes privadas.
+Estos componentes no tienen cargo horario; el IPv4 público existe únicamente
+durante cada ejecución de Fargate.
+
+## Promoción DEV a PROD
+
+DEV no publica en el bucket que consume QuickSight. Antes de promover:
+
+1. ejecutar el ETL manualmente tres veces en DEV;
+2. validar los tres CSV contractuales y revisar CloudWatch Logs;
+3. comparar columnas y tipos con la versión productiva;
+4. estimar el costo real con la duración observada;
+5. aprobar explícitamente la promoción;
+6. crear la configuración PROD apuntando al bucket contractual existente.
+
+El calendario de DEV permanece deshabilitado hasta una decisión explícita.
 
 ## CloudWatch de bajo costo
 
