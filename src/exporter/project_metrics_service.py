@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Iterable
 
+from utils import get_custom_field_value
+
 logger = logging.getLogger(__name__)
 
 
@@ -124,20 +126,20 @@ class ProjectMetricsService:
         )
 
         start_on = self._parse_date(
-            self._get_first_value(
-                project,
-                "start_on",
-                "start_date",
-                default=None,
+            self._get_project_date_value(
+                project=project,
+                direct_keys=("start_on", "start_date"),
+                custom_field_name="Fecha Inicio del proyecto",
             )
         )
 
         due_on = self._parse_date(
-            self._get_first_value(
-                project,
-                "due_on",
-                "due_date",
-                default=None,
+            self._get_project_date_value(
+                project=project,
+                direct_keys=("due_on", "due_date"),
+                custom_field_name=(
+                    "Fecha Planificada Termino del proyecto"
+                ),
             )
         )
 
@@ -435,6 +437,32 @@ class ProjectMetricsService:
             project.get("owner_name")
             or owner
             or ""
+        )
+
+    @classmethod
+    def _get_project_date_value(
+        cls,
+        project: dict[str, Any],
+        direct_keys: tuple[str, ...],
+        custom_field_name: str,
+    ) -> Any:
+        direct_value = cls._get_first_value(
+            project,
+            *direct_keys,
+            default=None,
+        )
+
+        if direct_value not in (None, ""):
+            return direct_value
+
+        custom_fields = project.get("custom_fields")
+
+        if not isinstance(custom_fields, list):
+            return None
+
+        return get_custom_field_value(
+            custom_fields=custom_fields,
+            field_name=custom_field_name,
         )
 
     @staticmethod

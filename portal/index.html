@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>PMO Executive Portfolio Dashboard</title>
+    <link rel="stylesheet" href="styles-v4.css">
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand" aria-label="PMO Executive Dashboard">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <strong>PMO</strong>
+          <span>Executive Dashboard</span>
+        </div>
+      </div>
+      <div class="title">
+        <h1 id="page-title">PMO Portfolio Overview</h1>
+        <p id="page-subtitle">Strategic Delivery | Portfolio Governance | Executive Decision Making</p>
+      </div>
+      <div class="environment">
+        <span id="environment">Cargando</span>
+        <small>Amazon QuickSight · us-east-1</small>
+        <button id="logout" type="button" hidden>Cerrar sesión</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar" aria-label="Navegación PMO">
+        <nav>
+          <p class="nav-heading">Analytics</p>
+          <button class="nav-item active" data-view="portfolio-overview" type="button">
+            <span class="nav-icon">◫</span>
+            <span>PMO Portfolio Overview</span>
+          </button>
+          <button class="nav-item" data-view="project-analysis" type="button">
+            <span class="nav-icon">⌕</span>
+            <span>Project Analysis</span>
+          </button>
+          <button class="nav-item" data-view="pm-analysis" type="button">
+            <span class="nav-icon">◎</span>
+            <span>Project Manager Analysis</span>
+          </button>
+
+          <p class="nav-heading nav-heading-spaced">PMO Copilot &amp; Artefactos</p>
+          <button class="nav-item nav-child" data-view="risk-matrix" type="button">Matriz de riesgos</button>
+          <button class="nav-item nav-child" data-view="raid" type="button">RAID</button>
+          <button class="nav-item nav-child" data-view="charter" type="button">Project Charter</button>
+          <button class="nav-item nav-child" data-view="raci" type="button">RACI</button>
+          <button class="nav-item nav-child" data-view="schedule" type="button">Cronograma</button>
+          <button class="nav-item nav-child" data-view="communications" type="button">Plan de comunicaciones</button>
+          <button class="nav-item nav-child" data-view="technical-checklist" type="button">Checklist técnico</button>
+          <button class="nav-item nav-child" data-view="executive-report" type="button">Informe ejecutivo</button>
+          <button class="nav-item nav-child" data-view="cutover" type="button">Plan de cutover</button>
+          <button class="nav-item nav-child" data-view="rollback" type="button">Plan de rollback</button>
+        </nav>
+        <footer class="sidebar-footer">
+          <strong>PMO Office</strong>
+          <span>Driving Value. Delivering Results.</span>
+        </footer>
+      </aside>
+
+      <main>
+        <section id="loading" class="message">
+          <div class="spinner" aria-hidden="true"></div>
+          <h2>Preparando dashboard</h2>
+          <p id="loading-message">Validando la configuración del ambiente.</p>
+        </section>
+
+        <section id="error" class="message message-error" hidden>
+          <h2>No fue posible cargar el dashboard</h2>
+          <p id="error-message"></p>
+        </section>
+
+        <section id="module-placeholder" class="module-placeholder" hidden>
+          <div class="module-badge">Módulo planificado</div>
+          <h2 id="module-title"></h2>
+          <p id="module-description"></p>
+          <div class="module-card">
+            <span class="module-card-icon" id="module-icon">◇</span>
+            <div>
+              <strong>Base técnica preparada</strong>
+              <p id="module-next-step"></p>
+            </div>
+          </div>
+        </section>
+
+        <iframe
+          id="dashboard"
+          title="PMO Executive Dashboard V2"
+          allowfullscreen
+          hidden>
+        </iframe>
+      </main>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app-v4.js"></script>
+  </body>
+</html>

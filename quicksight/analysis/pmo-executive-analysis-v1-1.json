@@ -1,0 +1,390 @@
+{
+  "AwsAccountId": "664858858204",
+  "AnalysisId": "pmo-executive-analysis-v1-1",
+  "Name": "PMO Executive Analysis v1.1",
+  "Permissions": [
+    {
+      "Principal": "arn:aws:quicksight:us-east-1:664858858204:user/default/AWSReservedSSO_AWSAdministratorAccess_cd675fd79d1b75e0/dbarrios",
+      "Actions": [
+        "quicksight:RestoreAnalysis",
+        "quicksight:UpdateAnalysisPermissions",
+        "quicksight:DeleteAnalysis",
+        "quicksight:QueryAnalysis",
+        "quicksight:DescribeAnalysisPermissions",
+        "quicksight:DescribeAnalysis",
+        "quicksight:UpdateAnalysis"
+      ]
+    }
+  ],
+  "Definition": {
+    "DataSetIdentifierDeclarations": [
+      {
+        "Identifier": "PMOExecutive",
+        "DataSetArn": "arn:aws:quicksight:us-east-1:664858858204:dataset/pmo-executive-semantic-v1-1"
+      }
+    ],
+    "CalculatedFields": [
+      {
+        "DataSetIdentifier": "PMOExecutive",
+        "Name": "KPI Proyectos Activos",
+        "Expression": "sum({Proyecto Activo})"
+      },
+      {
+        "DataSetIdentifier": "PMOExecutive",
+        "Name": "KPI Proyectos Finalizados",
+        "Expression": "sum({Proyecto Finalizado})"
+      },
+      {
+        "DataSetIdentifier": "PMOExecutive",
+        "Name": "KPI Proyectos en Riesgo",
+        "Expression": "sum({Proyecto en Riesgo})"
+      },
+      {
+        "DataSetIdentifier": "PMOExecutive",
+        "Name": "KPI Proyectos con Retraso",
+        "Expression": "sum({Proyecto con Retraso})"
+      },
+      {
+        "DataSetIdentifier": "PMOExecutive",
+        "Name": "KPI Clientes",
+        "Expression": "distinct_count({Cliente})"
+      },
+      {
+        "DataSetIdentifier": "PMOExecutive",
+        "Name": "KPI PM",
+        "Expression": "distinct_count({Responsable Proyecto})"
+      },
+      {
+        "DataSetIdentifier": "PMOExecutive",
+        "Name": "KPI Presupuesto",
+        "Expression": "sum({Total presupuestado})"
+      },
+      {
+        "DataSetIdentifier": "PMOExecutive",
+        "Name": "KPI Horas Planificadas",
+        "Expression": "sum({Horas Planificadas})"
+      }
+    ],
+    "Sheets": [
+      {
+        "SheetId": "resumen-ejecutivo",
+        "Name": "01 - Resumen Ejecutivo",
+        "ContentType": "INTERACTIVE",
+        "Visuals": [
+          {
+            "KPIVisual": {
+              "VisualId": "kpi-proyectos-activos",
+              "Title": {
+                "Visibility": "VISIBLE",
+                "FormatText": {
+                  "PlainText": "Proyectos Activos"
+                }
+              },
+              "ChartConfiguration": {
+                "FieldWells": {
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "field-kpi-proyectos-activos",
+                        "Column": {
+                          "DataSetIdentifier": "PMOExecutive",
+                          "ColumnName": "KPI Proyectos Activos"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "Actions": []
+            }
+          },
+          {
+            "KPIVisual": {
+              "VisualId": "kpi-proyectos-finalizados",
+              "Title": {
+                "Visibility": "VISIBLE",
+                "FormatText": {
+                  "PlainText": "Proyectos Finalizados"
+                }
+              },
+              "ChartConfiguration": {
+                "FieldWells": {
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "field-kpi-proyectos-finalizados",
+                        "Column": {
+                          "DataSetIdentifier": "PMOExecutive",
+                          "ColumnName": "KPI Proyectos Finalizados"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "Actions": []
+            }
+          },
+          {
+            "KPIVisual": {
+              "VisualId": "kpi-proyectos-riesgo",
+              "Title": {
+                "Visibility": "VISIBLE",
+                "FormatText": {
+                  "PlainText": "Proyectos en Riesgo"
+                }
+              },
+              "ChartConfiguration": {
+                "FieldWells": {
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "field-kpi-proyectos-riesgo",
+                        "Column": {
+                          "DataSetIdentifier": "PMOExecutive",
+                          "ColumnName": "KPI Proyectos en Riesgo"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "Actions": []
+            }
+          },
+          {
+            "KPIVisual": {
+              "VisualId": "kpi-proyectos-retraso",
+              "Title": {
+                "Visibility": "VISIBLE",
+                "FormatText": {
+                  "PlainText": "Proyectos con Retraso"
+                }
+              },
+              "ChartConfiguration": {
+                "FieldWells": {
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "field-kpi-proyectos-retraso",
+                        "Column": {
+                          "DataSetIdentifier": "PMOExecutive",
+                          "ColumnName": "KPI Proyectos con Retraso"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "Actions": []
+            }
+          },
+          {
+            "KPIVisual": {
+              "VisualId": "kpi-clientes",
+              "Title": {
+                "Visibility": "VISIBLE",
+                "FormatText": {
+                  "PlainText": "Clientes"
+                }
+              },
+              "ChartConfiguration": {
+                "FieldWells": {
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "field-kpi-clientes",
+                        "Column": {
+                          "DataSetIdentifier": "PMOExecutive",
+                          "ColumnName": "KPI Clientes"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "Actions": []
+            }
+          },
+          {
+            "KPIVisual": {
+              "VisualId": "kpi-pm",
+              "Title": {
+                "Visibility": "VISIBLE",
+                "FormatText": {
+                  "PlainText": "PM"
+                }
+              },
+              "ChartConfiguration": {
+                "FieldWells": {
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "field-kpi-pm",
+                        "Column": {
+                          "DataSetIdentifier": "PMOExecutive",
+                          "ColumnName": "KPI PM"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "Actions": []
+            }
+          },
+          {
+            "KPIVisual": {
+              "VisualId": "kpi-presupuesto",
+              "Title": {
+                "Visibility": "VISIBLE",
+                "FormatText": {
+                  "PlainText": "Presupuesto"
+                }
+              },
+              "ChartConfiguration": {
+                "FieldWells": {
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "field-kpi-presupuesto",
+                        "Column": {
+                          "DataSetIdentifier": "PMOExecutive",
+                          "ColumnName": "KPI Presupuesto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "Actions": []
+            }
+          },
+          {
+            "KPIVisual": {
+              "VisualId": "kpi-horas-planificadas",
+              "Title": {
+                "Visibility": "VISIBLE",
+                "FormatText": {
+                  "PlainText": "Horas Planificadas"
+                }
+              },
+              "ChartConfiguration": {
+                "FieldWells": {
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "field-kpi-horas-planificadas",
+                        "Column": {
+                          "DataSetIdentifier": "PMOExecutive",
+                          "ColumnName": "KPI Horas Planificadas"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "Actions": []
+            }
+          }
+        ],
+        "Layouts": [
+          {
+            "Configuration": {
+              "GridLayout": {
+                "Elements": [
+                  {
+                    "ElementId": "kpi-proyectos-activos",
+                    "ElementType": "VISUAL",
+                    "ColumnSpan": 9,
+                    "RowSpan": 4
+                  },
+                  {
+                    "ElementId": "kpi-proyectos-finalizados",
+                    "ElementType": "VISUAL",
+                    "ColumnSpan": 9,
+                    "RowSpan": 4
+                  },
+                  {
+                    "ElementId": "kpi-proyectos-riesgo",
+                    "ElementType": "VISUAL",
+                    "ColumnSpan": 9,
+                    "RowSpan": 4
+                  },
+                  {
+                    "ElementId": "kpi-proyectos-retraso",
+                    "ElementType": "VISUAL",
+                    "ColumnSpan": 9,
+                    "RowSpan": 4
+                  },
+                  {
+                    "ElementId": "kpi-clientes",
+                    "ElementType": "VISUAL",
+                    "ColumnSpan": 9,
+                    "RowSpan": 4
+                  },
+                  {
+                    "ElementId": "kpi-pm",
+                    "ElementType": "VISUAL",
+                    "ColumnSpan": 9,
+                    "RowSpan": 4
+                  },
+                  {
+                    "ElementId": "kpi-presupuesto",
+                    "ElementType": "VISUAL",
+                    "ColumnSpan": 9,
+                    "RowSpan": 4
+                  },
+                  {
+                    "ElementId": "kpi-horas-planificadas",
+                    "ElementType": "VISUAL",
+                    "ColumnSpan": 9,
+                    "RowSpan": 4
+                  }
+                ],
+                "CanvasSizeOptions": {
+                  "ScreenCanvasSizeOptions": {
+                    "ResizeOption": "FIXED",
+                    "OptimizedViewPortWidth": "1600px"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "AnalysisDefaults": {
+      "DefaultNewSheetConfiguration": {
+        "InteractiveLayoutConfiguration": {
+          "Grid": {
+            "CanvasSizeOptions": {
+              "ScreenCanvasSizeOptions": {
+                "ResizeOption": "FIXED",
+                "OptimizedViewPortWidth": "1600px"
+              }
+            }
+          }
+        },
+        "SheetContentType": "INTERACTIVE"
+      }
+    },
+    "Options": {
+      "WeekStart": "MONDAY",
+      "QBusinessInsightsStatus": "DISABLED"
+    }
+  },
+  "ValidationStrategy": {
+    "Mode": "STRICT"
+  },
+  "Tags": [
+    {
+      "Key": "Project",
+      "Value": "PMO-Dashboard"
+    },
+    {
+      "Key": "Version",
+      "Value": "1.1.0"
+    }
+  ]
+}

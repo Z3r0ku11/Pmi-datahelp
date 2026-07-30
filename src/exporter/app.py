@@ -1,15 +1,23 @@
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from config import settings
 from csv_exporter import CsvExporter
+from health_snapshot_service import (
+    HealthSnapshotService,
+    PORTFOLIO_HEALTH_FIELDS,
+    PROJECT_HEALTH_FIELDS,
+)
 from project_metrics_service import ProjectMetricsService
 from project_service import ProjectService
 from s3_repository import S3Repository
 from task_service import TaskService
+from utils import get_custom_field_value
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,20 +31,68 @@ logger = logging.getLogger(__name__)
 
 
 PROJECT_FIELDS = [
-    "project_gid",
-    "project_name",
-    "responsable_proyecto",
-    "owner_name",
-    "archived",
-    "completed",
-    "created_at",
-    "modified_at",
-    "start_on",
-    "due_on",
-    "status_title",
-    "status_color",
-    "permalink_url",
+    "NAME",
+    "URL",
+    "CREATED",
+    "ALL TASKS",
+    "COMPLETE",
+    "INCOMPLETE",
+    "STATUS COLOR",
+    "PMO ID",
+    "Fecha Inicio del proyecto",
+    "Fecha Planificada Termino del proyecto",
+    "Cliente",
+    "Total presupuestado",
+    "Fase del proyecto",
+    "Responsable Proyecto",
+    "AWS OPP ID",
+    "Pais",
+    "Tipo Proyecto",
+    "Segmento empresa",
+    "Horas Planificadas",
+    "Fecha Termino Efectiva",
+    "Pago Cliente",
+    "Fondos AWS",
+    "Incentivos",
+    "Creditos AWS",
+    "Inversion Morris",
+    "Clasificación",
+    "PROJECT ID",
+    "LATEST STATUS UPDATE",
+    "LATEST STATUS DATE",
+    "DATA REFRESH",
 ]
+
+PROJECT_CUSTOM_FIELDS = [
+    "PMO ID",
+    "Fecha Inicio del proyecto",
+    "Fecha Planificada Termino del proyecto",
+    "Cliente",
+    "Total presupuestado",
+    "Fase del proyecto",
+    "Responsable Proyecto",
+    "AWS OPP ID",
+    "Pais",
+    "Tipo Proyecto",
+    "Segmento empresa",
+    "Horas Planificadas",
+    "Fecha Termino Efectiva",
+    "Pago Cliente",
+    "Fondos AWS",
+    "Incentivos",
+    "Creditos AWS",
+    "Inversion Morris",
+    "Clasificación",
+]
+
+PROJECT_STATUS_LABELS = {
+    "green": "En Curso",
+    "yellow": "En riesgo",
+    "red": "Con retraso",
+    "blue": "On Hold",
+    "complete": "Finalizado",
+    "dropped": "Descartado",
+}
 
 
 TASK_FIELDS = [
@@ -97,11 +153,20 @@ PROJECT_METRICS_FIELDS = [
 
 def build_project_records(
     projects: list[dict[str, Any]],
+    tasks: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
-    Normaliza los proyectos obtenidos desde Asana.
+    Construye el contrato PMO_Projects con una fila por proyecto.
     """
     records: list[dict[str, Any]] = []
+    tasks_by_project: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    data_refresh = datetime.now(timezone.utc).isoformat()
+
+    for task in tasks:
+        project_gid = str(task.get("project_gid") or "")
+
+        if project_gid:
+            tasks_by_project[project_gid].append(task)
 
     for project in projects:
         if not isinstance(project, dict):
@@ -111,66 +176,80 @@ def build_project_records(
             )
             continue
 
-        owner = project.get("owner") or {}
-
-        if not isinstance(owner, dict):
-            owner = {}
-
         current_status = project.get("current_status") or {}
 
         if not isinstance(current_status, dict):
             current_status = {}
 
-        records.append(
-            {
-                "project_gid": str(
-                    project.get("gid") or ""
-                ),
-                "project_name": (
-                    project.get("name") or ""
-                ),
-                "responsable_proyecto": (
-                    project.get(
-                        "responsable_proyecto"
-                    )
-                    or ""
-                ),
-                "owner_name": (
-                    owner.get("name") or ""
-                ),
-                "archived": project.get(
-                    "archived",
-                    False,
-                ),
-                "completed": project.get(
-                    "completed",
-                    False,
-                ),
-                "created_at": (
-                    project.get("created_at") or ""
-                ),
-                "modified_at": (
-                    project.get("modified_at") or ""
-                ),
-                "start_on": (
-                    project.get("start_on") or ""
-                ),
-                "due_on": (
-                    project.get("due_on") or ""
-                ),
-                "status_title": (
-                    current_status.get("title") or ""
-                ),
-                "status_color": (
-                    current_status.get("color") or ""
-                ),
-                "permalink_url": (
-                    project.get("permalink_url") or ""
-                ),
-            }
+        custom_fields = project.get("custom_fields") or []
+
+        if not isinstance(custom_fields, list):
+            custom_fields = []
+
+        project_gid = str(project.get("gid") or "")
+        project_tasks = tasks_by_project.get(project_gid, [])
+        complete = sum(
+            1
+            for task in project_tasks
+            if bool(task.get("completed", False))
         )
 
+        record = {
+            "NAME": project.get("name") or "",
+            "URL": project.get("permalink_url") or "",
+            "CREATED": project.get("created_at") or "",
+            "ALL TASKS": len(project_tasks),
+            "COMPLETE": complete,
+            "INCOMPLETE": len(project_tasks) - complete,
+            "STATUS COLOR": get_project_status_label(
+                status_color=current_status.get("color"),
+                completed=bool(project.get("completed", False)),
+                archived=bool(project.get("archived", False)),
+            ),
+            "PROJECT ID": project_gid,
+            "LATEST STATUS UPDATE": (
+                current_status.get("text")
+                or current_status.get("title")
+                or ""
+            ),
+            "LATEST STATUS DATE": (
+                current_status.get("created_at") or ""
+            ),
+            "DATA REFRESH": data_refresh,
+        }
+
+        for field_name in PROJECT_CUSTOM_FIELDS:
+            record[field_name] = get_custom_field_value(
+                custom_fields=custom_fields,
+                field_name=field_name,
+            )
+
+        records.append(record)
+
     return records
+
+
+def get_project_status_label(
+    status_color: Any,
+    completed: bool = False,
+    archived: bool = False,
+) -> str:
+    """Convierte el color de estado de Asana en una etiqueta PMO."""
+    if completed:
+        return "Finalizado"
+
+    if archived:
+        return "Descartado"
+
+    normalized_color = str(status_color or "").strip().lower()
+
+    if not normalized_color:
+        return "On Hold"
+
+    return PROJECT_STATUS_LABELS.get(
+        normalized_color,
+        str(status_color).strip(),
+    )
 
 
 def validate_project_result(
@@ -280,6 +359,7 @@ def lambda_handler(
         project_service = ProjectService()
         task_service = TaskService()
         metrics_service = ProjectMetricsService()
+        health_snapshot_service = HealthSnapshotService()
 
         projects_path = (
             output_directory / "projects.csv"
@@ -289,6 +369,12 @@ def lambda_handler(
         )
         project_metrics_path = (
             output_directory / "project_metrics.csv"
+        )
+        project_health_snapshot_path = (
+            output_directory / "project_health_snapshot.csv"
+        )
+        portfolio_health_snapshot_path = (
+            output_directory / "portfolio_health_snapshot.csv"
         )
 
         # -----------------------------------------------------
@@ -301,34 +387,6 @@ def lambda_handler(
         project_result = project_service.execute()
         projects = validate_project_result(
             project_result
-        )
-
-        project_records = build_project_records(
-            projects
-        )
-
-        logger.info(
-            "Proyectos normalizados | registros=%s",
-            len(project_records),
-        )
-
-        if project_records:
-            logger.info(
-                "Campos disponibles en proyectos: %s",
-                sorted(project_records[0].keys()),
-            )
-
-        projects_file = csv_exporter.export(
-            records=project_records,
-            output_path=str(projects_path),
-            fieldnames=PROJECT_FIELDS,
-        )
-
-        logger.info(
-            "Archivo de proyectos generado | "
-            "path=%s | registros=%s",
-            projects_file,
-            len(project_records),
         )
 
         # -----------------------------------------------------
@@ -370,6 +428,29 @@ def lambda_handler(
             len(tasks),
         )
 
+        project_records = build_project_records(
+            projects=projects,
+            tasks=tasks,
+        )
+
+        logger.info(
+            "Proyectos normalizados | registros=%s",
+            len(project_records),
+        )
+
+        projects_file = csv_exporter.export(
+            records=project_records,
+            output_path=str(projects_path),
+            fieldnames=PROJECT_FIELDS,
+        )
+
+        logger.info(
+            "Archivo de proyectos generado | "
+            "path=%s | registros=%s",
+            projects_file,
+            len(project_records),
+        )
+
         # -----------------------------------------------------
         # 3. Métricas ejecutivas
         # -----------------------------------------------------
@@ -379,7 +460,7 @@ def lambda_handler(
 
         project_metrics = (
             metrics_service.build_metrics(
-                projects=project_records,
+                projects=projects,
                 tasks=tasks,
             )
         )
@@ -413,7 +494,37 @@ def lambda_handler(
         )
 
         # -----------------------------------------------------
-        # 4. Carga a S3
+        # 4. Snapshot mensual de salud
+        # -----------------------------------------------------
+        (
+            project_health_snapshot,
+            portfolio_health_snapshot,
+        ) = health_snapshot_service.build(
+            projects=project_records,
+        )
+        project_health_snapshot_file = csv_exporter.export(
+            records=project_health_snapshot,
+            output_path=str(project_health_snapshot_path),
+            fieldnames=PROJECT_HEALTH_FIELDS,
+        )
+        portfolio_health_snapshot_file = csv_exporter.export(
+            records=portfolio_health_snapshot,
+            output_path=str(portfolio_health_snapshot_path),
+            fieldnames=PORTFOLIO_HEALTH_FIELDS,
+        )
+        project_health_snapshot_key = (
+            health_snapshot_service.project_object_key(
+                settings.project_health_history_prefix
+            )
+        )
+        portfolio_health_snapshot_key = (
+            health_snapshot_service.portfolio_object_key(
+                settings.portfolio_health_history_prefix
+            )
+        )
+
+        # -----------------------------------------------------
+        # 5. Carga a S3
         # -----------------------------------------------------
         logger.info(
             "Iniciando carga de archivos a S3 | bucket=%s",
@@ -438,6 +549,14 @@ def lambda_handler(
                 settings.project_metrics_key
             ),
         )
+        s3_repository.upload_file(
+            local_path=str(project_health_snapshot_file),
+            object_key=project_health_snapshot_key,
+        )
+        s3_repository.upload_file(
+            local_path=str(portfolio_health_snapshot_file),
+            object_key=portfolio_health_snapshot_key,
+        )
 
         result = {
             "statusCode": 200,
@@ -453,6 +572,12 @@ def lambda_handler(
                 "projectMetrics": str(
                     project_metrics_file
                 ),
+                "projectHealthSnapshot": str(
+                    project_health_snapshot_file
+                ),
+                "portfolioHealthSnapshot": str(
+                    portfolio_health_snapshot_file
+                ),
             },
             "s3Uris": {
                 "projects": (
@@ -466,6 +591,14 @@ def lambda_handler(
                 "projectMetrics": (
                     f"s3://{settings.s3_bucket}/"
                     f"{settings.project_metrics_key}"
+                ),
+                "projectHealthSnapshot": (
+                    f"s3://{settings.s3_bucket}/"
+                    f"{project_health_snapshot_key}"
+                ),
+                "portfolioHealthSnapshot": (
+                    f"s3://{settings.s3_bucket}/"
+                    f"{portfolio_health_snapshot_key}"
                 ),
             },
         }

@@ -55,4 +55,43 @@ def get_custom_field_value(
         if number_value is not None:
             return str(number_value)
 
+        date_value = custom_field.get("date_value")
+
+        if isinstance(date_value, dict):
+            value = (
+                date_value.get("date")
+                or date_value.get("date_time")
+            )
+
+            if value not in (None, ""):
+                return str(value).strip()
+
+        people_value = custom_field.get("people_value")
+
+        if isinstance(people_value, list):
+            names = [
+                str(person.get("name") or "").strip()
+                for person in people_value
+                if isinstance(person, dict)
+                and person.get("name")
+            ]
+
+            if names:
+                return ", ".join(names)
+
+        multi_enum_values = custom_field.get(
+            "multi_enum_values"
+        )
+
+        if isinstance(multi_enum_values, list):
+            names = [
+                str(value.get("name") or "").strip()
+                for value in multi_enum_values
+                if isinstance(value, dict)
+                and value.get("name")
+            ]
+
+            if names:
+                return ", ".join(names)
+
     return ""

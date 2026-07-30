@@ -1,0 +1,317 @@
+{
+  "modelVersion": "1.1.0",
+  "name": "PMO Executive Semantic Model",
+  "grain": "Una fila por proyecto",
+  "datasetId": "pmo-executive-semantic-v1-1",
+  "join": {
+    "type": "LEFT",
+    "leftDataset": "projects.csv",
+    "leftKey": "PROJECT ID",
+    "rightDataset": "project_metrics.csv",
+    "rightKey": "project_gid",
+    "leftKeyUnique": true,
+    "rightKeyUnique": true
+  },
+  "sourceFields": [
+    {
+      "source": "NAME",
+      "semanticName": "Proyecto",
+      "folder": "01 - Dimensiones",
+      "type": "STRING"
+    },
+    {
+      "source": "PROJECT ID",
+      "semanticName": "Proyecto ID",
+      "folder": "01 - Dimensiones",
+      "type": "STRING"
+    },
+    {
+      "source": "Cliente",
+      "semanticName": "Cliente",
+      "folder": "01 - Dimensiones",
+      "type": "STRING"
+    },
+    {
+      "source": "Responsable Proyecto",
+      "semanticName": "Responsable Proyecto",
+      "folder": "01 - Dimensiones",
+      "type": "STRING"
+    },
+    {
+      "source": "Pais",
+      "semanticName": "Pais",
+      "folder": "01 - Dimensiones",
+      "type": "STRING"
+    },
+    {
+      "source": "Segmento empresa",
+      "semanticName": "Segmento",
+      "folder": "01 - Dimensiones",
+      "type": "STRING"
+    },
+    {
+      "source": "Tipo Proyecto",
+      "semanticName": "Tipo Proyecto",
+      "folder": "01 - Dimensiones",
+      "type": "STRING"
+    },
+    {
+      "source": "Fase del proyecto",
+      "semanticName": "Fase",
+      "folder": "01 - Dimensiones",
+      "type": "STRING"
+    },
+    {
+      "source": "STATUS COLOR",
+      "semanticName": "Estado Proyecto",
+      "folder": "02 - Estado y ciclo de vida",
+      "type": "STRING"
+    },
+    {
+      "source": "project_status",
+      "semanticName": "Estado Tecnico Proyecto",
+      "folder": "02 - Estado y ciclo de vida",
+      "type": "STRING"
+    },
+    {
+      "source": "Total presupuestado",
+      "semanticName": "Total presupuestado",
+      "folder": "06 - Finanzas y capacidad",
+      "type": "DECIMAL",
+      "requiresTypeValidation": true
+    },
+    {
+      "source": "Horas Planificadas",
+      "semanticName": "Horas Planificadas",
+      "folder": "06 - Finanzas y capacidad",
+      "type": "DECIMAL",
+      "requiresTypeValidation": true
+    }
+  ],
+  "calculatedFields": [
+    {
+      "name": "Proyecto Activo",
+      "id": "cf-proyecto-activo",
+      "folder": "02 - Estado y ciclo de vida",
+      "type": "INTEGER",
+      "expression": "ifelse({Estado Proyecto} = 'Finalizado' OR {Estado Proyecto} = 'Descartado', 0, 1)"
+    },
+    {
+      "name": "Proyecto Finalizado",
+      "id": "cf-proyecto-finalizado",
+      "folder": "02 - Estado y ciclo de vida",
+      "type": "INTEGER",
+      "expression": "ifelse({Estado Proyecto} = 'Finalizado', 1, 0)"
+    },
+    {
+      "name": "Proyecto En Curso",
+      "id": "cf-proyecto-en-curso",
+      "folder": "02 - Estado y ciclo de vida",
+      "type": "INTEGER",
+      "expression": "ifelse({Estado Proyecto} = 'En Curso', 1, 0)"
+    },
+    {
+      "name": "Proyecto en Riesgo",
+      "id": "cf-proyecto-riesgo",
+      "folder": "02 - Estado y ciclo de vida",
+      "type": "INTEGER",
+      "expression": "ifelse({Estado Proyecto} = 'En riesgo', 1, 0)"
+    },
+    {
+      "name": "Proyecto con Retraso",
+      "id": "cf-proyecto-retraso",
+      "folder": "02 - Estado y ciclo de vida",
+      "type": "INTEGER",
+      "expression": "ifelse({Estado Proyecto} = 'Con retraso', 1, 0)"
+    },
+    {
+      "name": "Proyecto en Espera",
+      "id": "cf-proyecto-espera",
+      "folder": "02 - Estado y ciclo de vida",
+      "type": "INTEGER",
+      "expression": "ifelse({Estado Proyecto} = 'On Hold', 1, 0)"
+    },
+    {
+      "name": "Dias para Finalizar",
+      "id": "cf-dias-para-finalizar",
+      "folder": "03 - Plazos",
+      "type": "INTEGER",
+      "expression": "ifelse(isNull({Fecha Planificada Termino del proyecto}), NULL, dateDiff(truncDate('DD', now()), {Fecha Planificada Termino del proyecto}, 'DD'))"
+    },
+    {
+      "name": "Dias de Retraso",
+      "id": "cf-dias-retraso",
+      "folder": "03 - Plazos",
+      "type": "INTEGER",
+      "expression": "ifelse({Proyecto Activo} = 1 AND dateDiff(truncDate('DD', now()), {Fecha Planificada Termino del proyecto}, 'DD') < 0, -1 * dateDiff(truncDate('DD', now()), {Fecha Planificada Termino del proyecto}, 'DD'), 0)"
+    },
+    {
+      "name": "Estado de Plazo",
+      "id": "cf-estado-plazo",
+      "folder": "03 - Plazos",
+      "type": "STRING",
+      "expression": "ifelse({Proyecto Finalizado} = 1, 'Cerrado', isNull({Fecha Planificada Termino del proyecto}), 'Sin fecha', dateDiff(truncDate('DD', now()), {Fecha Planificada Termino del proyecto}, 'DD') < 0, 'Vencido', dateDiff(truncDate('DD', now()), {Fecha Planificada Termino del proyecto}, 'DD') <= 7, 'Vence <= 7 días', dateDiff(truncDate('DD', now()), {Fecha Planificada Termino del proyecto}, 'DD') <= 15, 'Vence <= 15 días', dateDiff(truncDate('DD', now()), {Fecha Planificada Termino del proyecto}, 'DD') <= 30, 'Vence <= 30 días', 'En plazo')"
+    },
+    {
+      "name": "Proyecto Vencido",
+      "id": "cf-proyecto-vencido",
+      "folder": "03 - Plazos",
+      "type": "INTEGER",
+      "expression": "ifelse({Proyecto Activo} = 1 AND dateDiff(truncDate('DD', now()), {Fecha Planificada Termino del proyecto}, 'DD') < 0, 1, 0)"
+    },
+    {
+      "name": "Proyecto Proximo a Vencer",
+      "id": "cf-proyecto-proximo-vencer",
+      "folder": "03 - Plazos",
+      "type": "INTEGER",
+      "expression": "ifelse({Proyecto Activo} = 1 AND dateDiff(truncDate('DD', now()), {Fecha Planificada Termino del proyecto}, 'DD') >= 0 AND dateDiff(truncDate('DD', now()), {Fecha Planificada Termino del proyecto}, 'DD') <= 30, 1, 0)"
+    },
+    {
+      "name": "Nivel de Avance",
+      "id": "cf-nivel-avance",
+      "folder": "04 - Avance y tareas",
+      "type": "STRING",
+      "expression": "ifelse({progress_pct} = 100, '100% Completado', {progress_pct} >= 75, '75–99%', {progress_pct} >= 50, '50–74%', {progress_pct} >= 25, '25–49%', '0–24%')"
+    },
+    {
+      "name": "Peso Esfuerzo Score",
+      "id": "cf-peso-esfuerzo-score",
+      "folder": "05 - Portfolio Health",
+      "type": "DECIMAL",
+      "expression": "ifelse(isNull({Horas Planificadas}) OR {Horas Planificadas} <= 200, 1, {Horas Planificadas} <= 600, 2, 3)"
+    },
+    {
+      "name": "Peso Costo Score",
+      "id": "cf-peso-costo-score",
+      "folder": "05 - Portfolio Health",
+      "type": "DECIMAL",
+      "expression": "ifelse(isNull({Total presupuestado}) OR {Total presupuestado} <= 20000, 1, {Total presupuestado} <= 50000, 2, 3)"
+    },
+    {
+      "name": "Peso Duracion Score",
+      "id": "cf-peso-duracion-score",
+      "folder": "05 - Portfolio Health",
+      "type": "DECIMAL",
+      "expression": "ifelse(isNull({Fecha Inicio del proyecto}) OR isNull({Fecha Planificada Termino del proyecto}) OR dateDiff({Fecha Inicio del proyecto}, {Fecha Planificada Termino del proyecto}, 'DD') <= 28, 1, dateDiff({Fecha Inicio del proyecto}, {Fecha Planificada Termino del proyecto}, 'DD') <= 90, 2, 3)"
+    },
+    {
+      "name": "Peso Tipo Score",
+      "id": "cf-peso-tipo-score",
+      "folder": "05 - Portfolio Health",
+      "type": "DECIMAL",
+      "expression": "ifelse(isNull({Tipo Proyecto}) OR trim({Tipo Proyecto}) = '', 1, {Tipo Proyecto} = 'Training', 1, {Tipo Proyecto} = 'POC', 1, {Tipo Proyecto} = 'Professional Services', 1, {Tipo Proyecto} = 'Programa AWS IA (Inmersion Day, D2C, otros)', 1, {Tipo Proyecto} = 'Custom Development', 2, {Tipo Proyecto} = 'Chatbots y Agentes', 2, {Tipo Proyecto} = 'MlOps y Migración de Datos', 2, {Tipo Proyecto} = 'Migrations', 3, {Tipo Proyecto} = 'WAR', 3, {Tipo Proyecto} = 'Remediations WAR', 3, 1)"
+    },
+    {
+      "name": "Peso Segmento Score",
+      "id": "cf-peso-segmento-score",
+      "folder": "05 - Portfolio Health",
+      "type": "INTEGER",
+      "expression": "ifelse(isNull({Segmento}) OR trim({Segmento}) = '', 1, {Segmento} = 'Startup', 1, {Segmento} = 'SMB', 1, {Segmento} = 'Mid Market', 2, {Segmento} = 'Otro', 2, {Segmento} = 'Enterprise', 3, {Segmento} = 'Public Sector', 3, {Segmento} = 'Public Sector / Gobierno', 3, 1)"
+    },
+    {
+      "name": "Peso Proyecto Valido",
+      "id": "cf-peso-proyecto-valido",
+      "folder": "05 - Portfolio Health",
+      "type": "INTEGER",
+      "expression": "ifelse(isNull({Horas Planificadas}) OR {Horas Planificadas} <= 0 OR isNull({Total presupuestado}) OR {Total presupuestado} <= 0 OR isNull({Fecha Inicio del proyecto}) OR isNull({Fecha Planificada Termino del proyecto}) OR dateDiff({Fecha Inicio del proyecto}, {Fecha Planificada Termino del proyecto}, 'DD') <= 0 OR isNull({Tipo Proyecto}) OR trim({Tipo Proyecto}) = '', 0, 1)"
+    },
+    {
+      "name": "Indice Peso Proyecto",
+      "id": "cf-indice-peso-proyecto",
+      "folder": "05 - Portfolio Health",
+      "type": "DECIMAL",
+      "expression": "round(({Peso Esfuerzo Score} + {Peso Costo Score} + {Peso Duracion Score} + {Peso Tipo Score} + {Peso Segmento Score}) / 15 * 100, 1)"
+    },
+    {
+      "name": "Puntaje Total Proyecto",
+      "id": "cf-puntaje-total-proyecto",
+      "folder": "05 - Portfolio Health",
+      "type": "INTEGER",
+      "expression": "{Peso Esfuerzo Score} + {Peso Costo Score} + {Peso Duracion Score} + {Peso Tipo Score} + {Peso Segmento Score}"
+    },
+    {
+      "name": "Clasificacion Peso Proyecto",
+      "id": "cf-clasificacion-peso-proyecto",
+      "folder": "05 - Portfolio Health",
+      "type": "STRING",
+      "expression": "ifelse({Puntaje Total Proyecto} <= 7, 'Baja', {Puntaje Total Proyecto} <= 11, 'Media', 'Alta')"
+    },
+    {
+      "name": "Health Proyecto Score",
+      "id": "cf-health-proyecto-score",
+      "folder": "05 - Portfolio Health",
+      "type": "DECIMAL",
+      "expression": "ifelse({Estado Proyecto} = 'Finalizado' OR {Estado Proyecto} = 'Descartado', NULL, {Estado Proyecto} = 'En Curso', 1.00, {Estado Proyecto} = 'On Hold', 0.60, {Estado Proyecto} = 'En riesgo', 0.30, {Estado Proyecto} = 'Con retraso', 0.00, 0.00)"
+    },
+    {
+      "name": "Health Proyecto",
+      "id": "cf-health-proyecto",
+      "folder": "05 - Portfolio Health",
+      "type": "STRING",
+      "expression": "ifelse(isNull({Health Proyecto Score}), NULL, {Health Proyecto Score} = 1.00, 'Saludable', {Health Proyecto Score} = 0.60, 'Atencion', {Health Proyecto Score} = 0.30, 'En Riesgo', 'Critico')"
+    },
+    {
+      "name": "Proyecto con Responsable",
+      "id": "cf-con-responsable",
+      "folder": "07 - Control de datos",
+      "type": "INTEGER",
+      "expression": "ifelse({missing_responsible} = 0, 1, 0)"
+    },
+    {
+      "name": "Registro Completo",
+      "id": "cf-registro-completo",
+      "folder": "07 - Control de datos",
+      "type": "INTEGER",
+      "expression": "ifelse({missing_responsible} = 0 AND isNotNull({Fecha Planificada Termino del proyecto}), 1, 0)"
+    },
+  ],
+  "kpis": [
+    {
+      "name": "Proyectos Activos",
+      "folder": "08 - KPIs",
+      "expression": "distinct_countIf({Proyecto ID}, {Proyecto Activo} = 1)"
+    },
+    {
+      "name": "Proyectos Finalizados",
+      "folder": "08 - KPIs",
+      "expression": "distinct_countIf({Proyecto ID}, {Proyecto Finalizado} = 1)"
+    },
+    {
+      "name": "Proyectos en Riesgo",
+      "folder": "08 - KPIs",
+      "expression": "distinct_countIf({Proyecto ID}, {Proyecto en Riesgo} = 1)"
+    },
+    {
+      "name": "Proyectos con Retraso",
+      "folder": "08 - KPIs",
+      "expression": "distinct_countIf({Proyecto ID}, {Proyecto con Retraso} = 1)"
+    },
+    {
+      "name": "Clientes",
+      "folder": "08 - KPIs",
+      "expression": "distinct_count({Cliente})"
+    },
+    {
+      "name": "PM",
+      "folder": "08 - KPIs",
+      "expression": "distinct_count({Responsable Proyecto})"
+    },
+    {
+      "name": "Presupuesto",
+      "folder": "08 - KPIs",
+      "expression": "sum({Total presupuestado})",
+      "requiresTypeValidation": true
+    },
+    {
+      "name": "Horas Planificadas",
+      "folder": "08 - KPIs",
+      "expression": "sum({Horas Planificadas})",
+      "requiresTypeValidation": true
+    },
+    {
+      "name": "Portfolio Health",
+      "folder": "08 - KPIs",
+      "expression": "avg({Health Proyecto Score})"
+    }
+  ]
+}
