@@ -476,6 +476,7 @@ Resources:
                   - ecr:GetDownloadUrlForLayer
                   - ecr:InitiateLayerUpload
                   - ecr:PutImage
+                  - ecr:StartImageScan
                   - ecr:UploadLayerPart
                 Resource: !GetAtt ContainerRepository.Arn
               - Effect: Allow
