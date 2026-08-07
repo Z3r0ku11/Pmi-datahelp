@@ -1,0 +1,679 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Serverless risk-analysis pilot isolated in DEV for PMO-IP.
+
+Parameters:
+  PortalUrl:
+    Type: String
+  UserPoolId:
+    Type: String
+  UserPoolClientId:
+    Type: String
+  RiskBucketName:
+    Type: String
+  BedrockModelId:
+    Type: String
+    Default: amazon.nova-lite-v1:0
+  PdfParserLayerArn:
+    Type: String
+    Description: ARN of the private DEV Lambda layer containing pypdf.
+
+Resources:
+  RiskBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref RiskBucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - POST
+            AllowedOrigins:
+              - !Ref PortalUrl
+            ExposedHeaders:
+              - ETag
+            MaxAge: 300
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-source-documents
+            Status: Enabled
+            Prefix: risk-analysis/
+            ExpirationInDays: 30
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 7
+      Tags:
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+        - Key: Component
+          Value: risk-analysis
+
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /pmo-ip/dev/risk-analysis-api
+      RetentionInDays: 7
+
+  WorkerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /pmo-ip/dev/risk-analysis-worker
+      RetentionInDays: 7
+
+  ApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-ip-dev-risk-analysis-api
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: manage-risk-analysis-jobs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt ApiLogGroup.Arn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub ${RiskBucket.Arn}/risk-analysis/*
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt WorkerFunction.Arn
+
+  WorkerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-ip-dev-risk-analysis-worker
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: analyze-risk-documents
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt WorkerLogGroup.Arn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub ${RiskBucket.Arn}/risk-analysis/*
+              - Effect: Allow
+                Action: bedrock:InvokeModel
+                Resource: "*"
+
+  WorkerFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: WorkerLogGroup
+    Properties:
+      FunctionName: pmo-ip-dev-risk-analysis-worker
+      Runtime: python3.12
+      Handler: index.handler
+      MemorySize: 512
+      Timeout: 120
+      ReservedConcurrentExecutions: 1
+      Role: !GetAtt WorkerRole.Arn
+      Layers:
+        - !Ref PdfParserLayerArn
+      LoggingConfig:
+        LogFormat: JSON
+        LogGroup: !Ref WorkerLogGroup
+      Environment:
+        Variables:
+          RISK_BUCKET: !Ref RiskBucket
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          MAX_SOURCE_BYTES: "20971520"
+          MAX_SOURCE_CHARS: "120000"
+      Code:
+        ZipFile: |
+          import io
+          import json
+          import logging
+          import os
+          import re
+          import zipfile
+          from datetime import datetime, timezone
+          from xml.etree import ElementTree
+
+          import boto3
+          from pypdf import PdfReader
+
+
+          LOGGER = logging.getLogger()
+          LOGGER.setLevel(logging.INFO)
+          S3 = boto3.client("s3")
+          BEDROCK = boto3.client("bedrock-runtime")
+          BUCKET = os.environ["RISK_BUCKET"]
+          MODEL_ID = os.environ["BEDROCK_MODEL_ID"]
+          MAX_BYTES = int(os.environ["MAX_SOURCE_BYTES"])
+          MAX_CHARS = int(os.environ["MAX_SOURCE_CHARS"])
+          TEXT_TAGS = {
+              "{http://schemas.openxmlformats.org/drawingml/2006/main}t",
+          }
+
+
+          def put_status(key, body):
+              S3.put_object(
+                  Bucket=BUCKET,
+                  Key=key,
+                  Body=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+                  ContentType="application/json",
+                  ServerSideEncryption="AES256",
+              )
+
+
+          def natural_number(name):
+              match = re.search(r"(\d+)", name)
+              return int(match.group(1)) if match else 0
+
+
+          def xml_text(content):
+              root = ElementTree.fromstring(content)
+              values = [
+                  (node.text or "").strip()
+                  for node in root.iter()
+                  if node.tag in TEXT_TAGS and (node.text or "").strip()
+              ]
+              return " | ".join(values)
+
+
+          def extract_pptx(content):
+              parts = []
+              with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                  slides = sorted(
+                      (
+                          name for name in archive.namelist()
+                          if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)
+                      ),
+                      key=natural_number,
+                  )
+                  for index, name in enumerate(slides, 1):
+                      text = xml_text(archive.read(name))
+                      if text:
+                          parts.append(f"[DIAPOSITIVA {index}] {text}")
+              return "\n".join(parts)
+
+
+          def extract_pdf(content):
+              reader = PdfReader(io.BytesIO(content))
+              if reader.is_encrypted:
+                  try:
+                      reader.decrypt("")
+                  except Exception as error:
+                      raise ValueError(
+                          "El PDF está protegido y no puede analizarse."
+                      ) from error
+              pages = []
+              for index, page in enumerate(reader.pages, 1):
+                  text = (page.extract_text() or "").strip()
+                  if text:
+                      pages.append(f"[PÁGINA {index}] {text}")
+              if not pages:
+                  raise ValueError(
+                      "El PDF no contiene texto digital extraíble. "
+                      "Los PDF escaneados no están admitidos."
+                  )
+              return "\n".join(pages)
+
+
+          def parse_json_response(text):
+              cleaned = text.strip()
+              cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+              cleaned = re.sub(r"\s*```$", "", cleaned)
+              return json.loads(cleaned)
+
+
+          def risk_level(score):
+              if score <= 4:
+                  return "Bajo"
+              if score <= 9:
+                  return "Medio"
+              if score <= 16:
+                  return "Alto"
+              return "Crítico"
+
+
+          def normalize_risks(items):
+              normalized = []
+              titles = set()
+              for item in items:
+                  title = str(item.get("title") or "").strip()
+                  evidence = str(item.get("evidence") or "").strip()
+                  if not title or not evidence:
+                      continue
+                  title_key = title.casefold()
+                  if title_key in titles:
+                      continue
+                  titles.add(title_key)
+                  probability = max(1, min(5, int(item.get("probability", 1))))
+                  impact = max(1, min(5, int(item.get("impact", 1))))
+                  score = probability * impact
+                  normalized.append({
+                      "id": "",
+                      "title": title,
+                      "cause": str(item.get("cause") or "").strip(),
+                      "consequence": str(item.get("consequence") or "").strip(),
+                      "category": str(item.get("category") or "General").strip(),
+                      "probability": probability,
+                      "impact": impact,
+                      "score": score,
+                      "level": risk_level(score),
+                      "owner": str(item.get("owner") or "Project Manager").strip(),
+                      "response": str(item.get("response") or "Mitigar").strip(),
+                      "mitigation": str(item.get("mitigation") or "").strip(),
+                      "evidence": evidence,
+                      "evidenceType": str(
+                          item.get("evidenceType") or "Explícita"
+                      ).strip(),
+                      "confidence": str(item.get("confidence") or "Media").strip(),
+                      "status": "Propuesto",
+                  })
+              normalized.sort(
+                  key=lambda risk: (
+                      risk["score"],
+                      risk["confidence"] == "Alta",
+                  ),
+                  reverse=True,
+              )
+              normalized = normalized[:10]
+              for index, risk in enumerate(normalized, 1):
+                  risk["id"] = f"R-{index:03d}"
+              return normalized
+
+
+          def analyze(source_text):
+              prompt = f"""
+          Actúa como Senior PMO Risk Manager. Analiza exclusivamente la evidencia
+          documental incluida abajo. La propuesta PDF o PPTX es la fuente principal.
+          Genera como máximo 10 riesgos consolidados y accionables. No inventes
+          riesgos para completar el límite. Prioriza exposición, evidencia,
+          relevancia y capacidad de mitigación. Un riesgo por ausencia debe usar
+          evidenceType='Brecha documental'. Devuelve SOLO JSON válido con esta
+          estructura: {{"risks":[{{"title":"", "cause":"", "consequence":"",
+          "category":"Alcance|Plazo|Costo|Calidad|Seguridad|Arquitectura|Dependencias|Comercial|Gobernanza|Otro",
+          "probability":1, "impact":1, "owner":"", "response":"Evitar|Mitigar|Transferir|Aceptar",
+          "mitigation":"", "evidence":"archivo y diapositiva o sección",
+          "evidenceType":"Explícita|Brecha documental", "confidence":"Alta|Media|Baja"}}]}}.
+
+          DOCUMENTOS:
+          {source_text[:MAX_CHARS]}
+          """
+              response = BEDROCK.converse(
+                  modelId=MODEL_ID,
+                  messages=[{
+                      "role": "user",
+                      "content": [{"text": prompt}],
+                  }],
+                  inferenceConfig={
+                      "maxTokens": 3500,
+                      "temperature": 0.1,
+                  },
+              )
+              content = response["output"]["message"]["content"]
+              text = next(item["text"] for item in content if "text" in item)
+              result = parse_json_response(text)
+              return normalize_risks(result.get("risks") or []), response.get("usage", {})
+
+
+          def handler(event, context):
+              del context
+              prefix = event["prefix"]
+              status_key = f"{prefix}/status.json"
+              try:
+                  put_status(status_key, {
+                      "analysisId": event["analysisId"],
+                      "status": "PROCESSING",
+                      "updatedAt": datetime.now(timezone.utc).isoformat(),
+                  })
+                  extracted = []
+                  for source in event["files"]:
+                      item = S3.get_object(Bucket=BUCKET, Key=source["key"])
+                      content = item["Body"].read(MAX_BYTES + 1)
+                      if len(content) > MAX_BYTES:
+                          raise ValueError("Un archivo supera el límite de 20 MB.")
+                      extension = source["extension"]
+                      if extension == ".pptx":
+                          text = extract_pptx(content)
+                      elif extension == ".pdf":
+                          text = extract_pdf(content)
+                      else:
+                          raise ValueError(f"Formato no permitido: {extension}")
+                      extracted.append(
+                          f"\n[ARCHIVO {source['role'].upper()}: "
+                          f"{source['displayName']}]\n{text}"
+                      )
+                  risks, usage = analyze("\n".join(extracted))
+                  if not risks:
+                      raise ValueError("El modelo no generó riesgos con evidencia.")
+                  result = {
+                      "analysisId": event["analysisId"],
+                      "status": "COMPLETED",
+                      "updatedAt": datetime.now(timezone.utc).isoformat(),
+                      "project": event.get("project") or {},
+                      "riskLimit": 10,
+                      "risks": risks,
+                      "usage": usage,
+                  }
+                  put_status(status_key, result)
+                  LOGGER.info(json.dumps({
+                      "event": "risk_analysis_completed",
+                      "analysis_id": event["analysisId"],
+                      "files": len(event["files"]),
+                      "risks": len(risks),
+                      "input_tokens": usage.get("inputTokens", 0),
+                      "output_tokens": usage.get("outputTokens", 0),
+                  }))
+              except Exception as error:
+                  LOGGER.exception("risk_analysis_failed")
+                  put_status(status_key, {
+                      "analysisId": event.get("analysisId", ""),
+                      "status": "FAILED",
+                      "message": str(error)[:300],
+                      "updatedAt": datetime.now(timezone.utc).isoformat(),
+                  })
+
+  ApiFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: ApiLogGroup
+    Properties:
+      FunctionName: pmo-ip-dev-risk-analysis-api
+      Runtime: python3.12
+      Handler: index.handler
+      MemorySize: 256
+      Timeout: 10
+      Role: !GetAtt ApiRole.Arn
+      LoggingConfig:
+        LogFormat: JSON
+        LogGroup: !Ref ApiLogGroup
+      Environment:
+        Variables:
+          RISK_BUCKET: !Ref RiskBucket
+          WORKER_FUNCTION: !Ref WorkerFunction
+          PORTAL_URL: !Ref PortalUrl
+      Code:
+        ZipFile: |
+          import json
+          import os
+          import re
+          import uuid
+          from datetime import datetime, timezone
+
+          import boto3
+
+
+          S3 = boto3.client("s3")
+          LAMBDA = boto3.client("lambda")
+          BUCKET = os.environ["RISK_BUCKET"]
+          WORKER = os.environ["WORKER_FUNCTION"]
+          ALLOWED_EXTENSIONS = {".pdf", ".pptx"}
+          ALLOWED_ROLES = {"proposal", "sow", "nda"}
+
+
+          def response(status, body):
+              return {
+                  "statusCode": status,
+                  "headers": {
+                      "content-type": "application/json",
+                      "cache-control": "no-store",
+                  },
+                  "body": json.dumps(body, ensure_ascii=False),
+              }
+
+
+          def safe_name(value):
+              name = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-.")
+              return name[:100] or "document"
+
+
+          def status_key(subject, analysis_id):
+              return f"risk-analysis/{subject}/{analysis_id}/status.json"
+
+
+          def read_status(subject, analysis_id):
+              item = S3.get_object(
+                  Bucket=BUCKET,
+                  Key=status_key(subject, analysis_id),
+              )
+              return json.loads(item["Body"].read())
+
+
+          def create_analysis(subject, body):
+              files = body.get("files") or []
+              proposals = [item for item in files if item.get("role") == "proposal"]
+              if not 1 <= len(files) <= 3 or len(proposals) != 1:
+                  return response(
+                      400,
+                      {"message": "Se requiere una propuesta y máximo tres archivos."},
+                  )
+              analysis_id = str(uuid.uuid4())
+              prefix = f"risk-analysis/{subject}/{analysis_id}"
+              prepared = []
+              uploads = []
+              for index, item in enumerate(files, 1):
+                  role = str(item.get("role") or "").lower()
+                  display_name = str(item.get("name") or "")
+                  extension = os.path.splitext(display_name)[1].lower()
+                  if role not in ALLOWED_ROLES or extension not in ALLOWED_EXTENSIONS:
+                      return response(400, {"message": "Archivo o rol no permitido."})
+                  if role == "proposal" and extension not in {".pdf", ".pptx"}:
+                      return response(
+                          400,
+                          {"message": "La propuesta debe ser PDF digital o PPTX."},
+                      )
+                  object_key = (
+                      f"{prefix}/sources/{index:02d}-{role}-"
+                      f"{safe_name(display_name)}"
+                  )
+                  content_type = str(
+                      item.get("contentType") or "application/octet-stream"
+                  )
+                  upload = S3.generate_presigned_post(
+                      Bucket=BUCKET,
+                      Key=object_key,
+                      Fields={"Content-Type": content_type},
+                      Conditions=[
+                          {"Content-Type": content_type},
+                          ["content-length-range", 1, 20971520],
+                      ],
+                      ExpiresIn=900,
+                  )
+                  uploads.append({
+                      "name": display_name,
+                      "url": upload["url"],
+                      "fields": upload["fields"],
+                  })
+                  prepared.append({
+                      "role": role,
+                      "displayName": display_name,
+                      "extension": extension,
+                      "key": object_key,
+                  })
+              status = {
+                  "analysisId": analysis_id,
+                  "status": "AWAITING_UPLOAD",
+                  "createdAt": datetime.now(timezone.utc).isoformat(),
+                  "project": body.get("project") or {},
+                  "files": prepared,
+              }
+              S3.put_object(
+                  Bucket=BUCKET,
+                  Key=status_key(subject, analysis_id),
+                  Body=json.dumps(status, ensure_ascii=False).encode("utf-8"),
+                  ContentType="application/json",
+                  ServerSideEncryption="AES256",
+              )
+              return response(201, {
+                  "analysisId": analysis_id,
+                  "uploads": uploads,
+              })
+
+
+          def start_analysis(subject, analysis_id):
+              status = read_status(subject, analysis_id)
+              if status.get("status") != "AWAITING_UPLOAD":
+                  return response(409, {"message": "El análisis ya fue iniciado."})
+              for item in status["files"]:
+                  S3.head_object(Bucket=BUCKET, Key=item["key"])
+              status["status"] = "QUEUED"
+              S3.put_object(
+                  Bucket=BUCKET,
+                  Key=status_key(subject, analysis_id),
+                  Body=json.dumps(status, ensure_ascii=False).encode("utf-8"),
+                  ContentType="application/json",
+                  ServerSideEncryption="AES256",
+              )
+              LAMBDA.invoke(
+                  FunctionName=WORKER,
+                  InvocationType="Event",
+                  Payload=json.dumps({
+                      "analysisId": analysis_id,
+                      "prefix": f"risk-analysis/{subject}/{analysis_id}",
+                      "files": status["files"],
+                      "project": status.get("project") or {},
+                  }).encode("utf-8"),
+              )
+              return response(202, {"analysisId": analysis_id, "status": "QUEUED"})
+
+
+          def handler(event, context):
+              del context
+              claims = event["requestContext"]["authorizer"]["jwt"]["claims"]
+              subject = re.sub(r"[^A-Za-z0-9_-]", "", claims["sub"])
+              method = event["requestContext"]["http"]["method"]
+              path = event.get("rawPath") or ""
+              try:
+                  if method == "POST" and path == "/analyses":
+                      return create_analysis(subject, json.loads(event.get("body") or "{}"))
+                  match = re.fullmatch(r"/analyses/([A-Za-z0-9-]+)(/start)?", path)
+                  if match and method == "POST" and match.group(2):
+                      return start_analysis(subject, match.group(1))
+                  if match and method == "GET" and not match.group(2):
+                      return response(200, read_status(subject, match.group(1)))
+                  return response(404, {"message": "Ruta no encontrada."})
+              except S3.exceptions.NoSuchKey:
+                  return response(404, {"message": "Análisis no encontrado."})
+              except Exception as error:
+                  return response(400, {"message": str(error)[:300]})
+
+  RiskApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: pmo-ip-dev-risk-analysis
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowHeaders:
+          - authorization
+          - content-type
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowOrigins:
+          - !Ref PortalUrl
+        MaxAge: 300
+
+  ApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref RiskApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ApiFunction.Arn
+      PayloadFormatVersion: "2.0"
+      TimeoutInMillis: 10000
+
+  ApiAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref RiskApi
+      AuthorizerType: JWT
+      Name: pmo-risk-cognito
+      IdentitySource:
+        - $request.header.Authorization
+      JwtConfiguration:
+        Audience:
+          - !Ref UserPoolClientId
+        Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}
+
+  CreateAnalysisRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RiskApi
+      RouteKey: POST /analyses
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub integrations/${ApiIntegration}
+
+  StartAnalysisRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RiskApi
+      RouteKey: POST /analyses/{analysisId}/start
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub integrations/${ApiIntegration}
+
+  GetAnalysisRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RiskApi
+      RouteKey: GET /analyses/{analysisId}
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub integrations/${ApiIntegration}
+
+  ApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref RiskApi
+      StageName: $default
+      AutoDeploy: true
+
+  ApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ApiFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${RiskApi}/*
+
+Outputs:
+  RiskApiUrl:
+    Value: !Sub https://${RiskApi}.execute-api.${AWS::Region}.amazonaws.com
+  RiskBucketName:
+    Value: !Ref RiskBucket
+  WorkerFunctionName:
+    Value: !Ref WorkerFunction
+  BedrockModelId:
+    Value: !Ref BedrockModelId

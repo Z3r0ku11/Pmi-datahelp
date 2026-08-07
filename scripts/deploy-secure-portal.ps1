@@ -5,6 +5,8 @@ param(
     [string]$AwsRegion = "us-east-1",
     [string]$AwsAccountId = "664858858204",
     [string]$DashboardId = "pmo-executive-dashboard-v2",
+    [string]$ProjectManagerDashboardId = "53543d09-075c-427b-aadf-fefa61a9e526",
+    [string]$RiskApiUrl = "",
     [string]$PortalUserEmail = "dbarrios@morrisopazo.com",
     [string]$QuickSightUserArn = (
         "arn:aws:quicksight:us-east-1:664858858204:user/default/" +
@@ -45,23 +47,40 @@ if (-not $Deploy) {
     exit 0
 }
 
+if (-not $RiskApiUrl) {
+    $RiskApiUrl = (
+        aws cloudformation describe-stacks `
+            --stack-name "pmo-ip-risk-analysis-dev" `
+            --region $AwsRegion `
+            --query "Stacks[0].Outputs[?OutputKey=='RiskApiUrl'].OutputValue | [0]" `
+            --output text `
+            --no-cli-pager |
+        Out-String
+    ).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $RiskApiUrl -or $RiskApiUrl -eq "None") {
+        throw "No fue posible resolver RiskApiUrl desde el stack DEV."
+    }
+}
+
 $portalOutputs = @{}
 foreach ($targetEnvironment in $allEnvironments) {
     $stackName = "pmo-executive-portal-$targetEnvironment"
-    aws cloudformation deploy `
-        --template-file $portalTemplate `
-        --stack-name $stackName `
-        --parameter-overrides `
-            "Environment=$targetEnvironment" `
-            "DashboardId=$DashboardId" `
-        --tags `
-            "Application=PMO-Executive-Portal" `
-            "Environment=$targetEnvironment" `
-        --region $AwsRegion `
-        --no-fail-on-empty-changeset `
-        --no-cli-pager
-    if ($LASTEXITCODE -ne 0) {
-        throw "Falló el despliegue de infraestructura: $stackName"
+    if ($targetEnvironment -in $publishEnvironments) {
+        aws cloudformation deploy `
+            --template-file $portalTemplate `
+            --stack-name $stackName `
+            --parameter-overrides `
+                "Environment=$targetEnvironment" `
+                "DashboardId=$DashboardId" `
+            --tags `
+                "Application=PMO-Executive-Portal" `
+                "Environment=$targetEnvironment" `
+            --region $AwsRegion `
+            --no-fail-on-empty-changeset `
+            --no-cli-pager
+        if ($LASTEXITCODE -ne 0) {
+            throw "Falló el despliegue de infraestructura: $stackName"
+        }
     }
 
     $outputs = aws cloudformation describe-stacks `
@@ -87,6 +106,7 @@ aws cloudformation deploy `
     --stack-name $authStackName `
     --parameter-overrides `
         "DashboardId=$DashboardId" `
+        "ProjectManagerDashboardId=$ProjectManagerDashboardId" `
         "QuickSightUserArn=$QuickSightUserArn" `
         "PortalUserEmail=$PortalUserEmail" `
         "DevPortalUrl=$($portalOutputs.dev.PortalUrl)" `
@@ -146,6 +166,10 @@ foreach ($targetEnvironment in $publishEnvironments) {
         $targetEnvironment.ToUpperInvariant()
     )
     $config = $config.Replace("__DASHBOARD_ID__", $DashboardId)
+    $config = $config.Replace(
+        "__PROJECT_MANAGER_DASHBOARD_ID__",
+        $ProjectManagerDashboardId
+    )
     $config = $config.Replace("__PORTAL_URL__", $outputMap.PortalUrl)
     $config = $config.Replace(
         "__COGNITO_DOMAIN__",
@@ -159,6 +183,7 @@ foreach ($targetEnvironment in $publishEnvironments) {
         "__EMBED_API_URL__",
         $authOutputs.EmbedApiUrl
     )
+    $config = $config.Replace("__RISK_API_URL__", $RiskApiUrl)
     Set-Content `
         -LiteralPath (Join-Path $buildDirectory "config.js") `
         -Value $config `

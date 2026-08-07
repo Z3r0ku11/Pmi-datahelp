@@ -20,8 +20,8 @@ Parameters:
     Default: "1207850474099261"
   ScheduleExpression:
     Type: String
-    Default: "cron(0 10 * * ? *)"
-    Description: UTC schedule. The DEV schedule is created disabled.
+    Default: "cron(0 0/8 * * ? *)"
+    Description: Runs every 8 hours (00:00, 08:00, 16:00) in America/Santiago.
 
 Resources:
   DevVpc:
@@ -373,8 +373,8 @@ Resources:
     Type: AWS::Scheduler::Schedule
     Properties:
       Name: pmo-ip-dev-asana-etl
-      Description: Disabled-by-default schedule for the PMO-IP DEV ETL.
-      State: DISABLED
+      Description: PMO-IP DEV Asana ETL every 8 hours (00:00, 08:00, 16:00) America/Santiago.
+      State: ENABLED
       ScheduleExpression: !Ref ScheduleExpression
       ScheduleExpressionTimezone: America/Santiago
       FlexibleTimeWindow:

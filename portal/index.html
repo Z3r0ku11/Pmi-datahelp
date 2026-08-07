@@ -44,12 +44,13 @@
             <span>Project Manager Analysis</span>
           </button>
 
-          <p class="nav-heading nav-heading-spaced">PMO Copilot &amp; Artefactos</p>
-          <button class="nav-item nav-child" data-view="risk-matrix" type="button">Matriz de riesgos</button>
+          <p class="nav-heading nav-heading-spaced">Fase II · Artefactos &amp; IA</p>
+          <button class="nav-item nav-child" data-view="schedule" type="button">Plan / Cronograma</button>
+          <button class="nav-item nav-child" data-view="wbs" type="button">EDT / WBS</button>
+          <button class="nav-item nav-child" data-view="risk-matrix" type="button">Riesgos</button>
           <button class="nav-item nav-child" data-view="raid" type="button">RAID</button>
           <button class="nav-item nav-child" data-view="charter" type="button">Project Charter</button>
           <button class="nav-item nav-child" data-view="raci" type="button">RACI</button>
-          <button class="nav-item nav-child" data-view="schedule" type="button">Cronograma</button>
           <button class="nav-item nav-child" data-view="communications" type="button">Plan de comunicaciones</button>
           <button class="nav-item nav-child" data-view="technical-checklist" type="button">Checklist técnico</button>
           <button class="nav-item nav-child" data-view="executive-report" type="button">Informe ejecutivo</button>
@@ -75,7 +76,7 @@
         </section>
 
         <section id="module-placeholder" class="module-placeholder" hidden>
-          <div class="module-badge">Módulo planificado</div>
+          <div id="module-status" class="module-badge">Módulo planificado</div>
           <h2 id="module-title"></h2>
           <p id="module-description"></p>
           <div class="module-card">
@@ -84,6 +85,91 @@
               <strong>Base técnica preparada</strong>
               <p id="module-next-step"></p>
             </div>
+          </div>
+        </section>
+
+        <section id="risk-workspace" class="risk-workspace" hidden>
+          <div class="risk-header">
+            <div>
+              <span class="module-badge">Piloto Fase II</span>
+              <h2>Matriz de Riesgos</h2>
+              <p id="risk-project-summary"></p>
+            </div>
+            <div class="risk-source">
+              <span>Fuente principal</span>
+              <strong id="risk-source-name"></strong>
+              <small>Máximo 10 riesgos · revisión humana obligatoria</small>
+            </div>
+          </div>
+
+          <section class="risk-panel risk-upload-panel">
+            <div>
+              <h3>Generar una nueva matriz</h3>
+              <p>Sube la propuesta principal y hasta dos documentos complementarios.</p>
+            </div>
+            <div class="risk-upload-grid">
+              <label>Nombre del proyecto<input id="risk-project-name" type="text" placeholder="Ej. Migración plataforma GenAI" maxlength="120"></label>
+              <label>Propuesta principal · PDF o PPTX<input id="risk-proposal-file" type="file" accept=".pdf,.pptx"></label>
+              <label>SOW opcional<input id="risk-sow-file" type="file" accept=".pdf,.pptx"></label>
+              <label>NDA opcional<input id="risk-nda-file" type="file" accept=".pdf,.pptx"></label>
+            </div>
+            <div class="risk-upload-actions">
+              <small>Máximo 3 archivos · 20 MB por archivo · solo PDF digital o PPTX · sin OCR</small>
+              <button id="risk-generate" type="button">Generar Matriz de Riesgos</button>
+            </div>
+            <div id="risk-analysis-progress" class="risk-analysis-progress" hidden>
+              <div class="spinner" aria-hidden="true"></div>
+              <div><strong id="risk-progress-title">Preparando análisis</strong><p id="risk-progress-message"></p></div>
+            </div>
+          </section>
+
+          <div id="risk-results" hidden>
+          <div class="risk-kpis" aria-label="Resumen de riesgos">
+            <article><span>Total</span><strong id="risk-total">0</strong></article>
+            <article class="risk-kpi-critical"><span>Críticos</span><strong id="risk-critical">0</strong></article>
+            <article class="risk-kpi-high"><span>Altos</span><strong id="risk-high">0</strong></article>
+            <article><span>Revisados</span><strong id="risk-reviewed">0%</strong></article>
+          </div>
+
+          <div class="risk-content-grid">
+            <section class="risk-panel risk-list-panel">
+              <div class="risk-toolbar">
+                <label>Nivel<select id="risk-level-filter"><option value="">Todos</option></select></label>
+                <label>Categoría<select id="risk-category-filter"><option value="">Todas</option></select></label>
+                <label>Estado<select id="risk-status-filter"><option value="">Todos</option></select></label>
+              </div>
+              <div class="risk-table-wrap">
+                <table class="risk-table">
+                  <thead><tr><th>ID</th><th>Riesgo</th><th>Categoría</th><th>P×I</th><th>Nivel</th><th>Estado</th></tr></thead>
+                  <tbody id="risk-table-body"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <aside class="risk-panel risk-matrix-panel">
+              <h3>Matriz 5×5</h3>
+              <p>Impacto × Probabilidad</p>
+              <div id="risk-heatmap" class="risk-heatmap" aria-label="Matriz de exposición"></div>
+            </aside>
+          </div>
+
+          <section id="risk-detail" class="risk-panel risk-detail" hidden>
+            <div class="risk-detail-heading">
+              <div><span id="risk-detail-id"></span><h3 id="risk-detail-title"></h3></div>
+              <button id="risk-detail-close" type="button" aria-label="Cerrar detalle">×</button>
+            </div>
+            <div class="risk-detail-grid">
+              <div><span>Causa</span><p id="risk-detail-cause"></p></div>
+              <div><span>Consecuencia</span><p id="risk-detail-consequence"></p></div>
+              <div><span>Mitigación propuesta</span><p id="risk-detail-mitigation"></p></div>
+              <div><span>Evidencia</span><p id="risk-detail-evidence"></p></div>
+            </div>
+            <div class="risk-review-controls">
+              <label>Responsable<input id="risk-detail-owner" type="text"></label>
+              <label>Estado<select id="risk-detail-status"><option>Propuesto</option><option>Revisado</option><option>Aprobado</option><option>Descartado</option></select></label>
+              <button id="risk-detail-save" type="button">Guardar revisión en esta sesión</button>
+            </div>
+          </section>
           </div>
         </section>
 

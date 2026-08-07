@@ -12,7 +12,9 @@
   const pageTitle = document.getElementById("page-title");
   const pageSubtitle = document.getElementById("page-subtitle");
   const placeholder = document.getElementById("module-placeholder");
+  const riskWorkspace = document.getElementById("risk-workspace");
   const moduleTitle = document.getElementById("module-title");
+  const moduleStatus = document.getElementById("module-status");
   const moduleDescription = document.getElementById("module-description");
   const moduleNextStep = document.getElementById("module-next-step");
   const moduleIcon = document.getElementById("module-icon");
@@ -21,13 +23,19 @@
   const verifierKey = "pmo-pkce-verifier";
   const stateKey = "pmo-oauth-state";
   let dashboardReady = false;
+  let activeDashboardKey = "";
   let fatalError = "";
+  let selectedRiskId = "";
+  let riskReviewKey = "";
+  let riskProject = {};
+  let riskRecords = [];
 
   const modules = {
     "portfolio-overview": {
       title: "PMO Portfolio Overview",
       subtitle: "Strategic Delivery | Portfolio Governance | Executive Decision Making",
-      dashboard: true
+      dashboard: true,
+      dashboardKey: "portfolio"
     },
     "project-analysis": {
       title: "Project Analysis",
@@ -39,15 +47,23 @@
     "pm-analysis": {
       title: "Project Manager Analysis",
       subtitle: "Carga, complejidad y desempeño por responsable",
-      description: "Panel para evaluar distribución de carga, peso del portafolio, proyectos activos y exposición por Project Manager.",
-      nextStep: "La navegación y el espacio están listos para incorporar el futuro dashboard de responsables.",
-      icon: "◎"
+      dashboard: true,
+      dashboardKey: "project-manager"
     },
     "risk-matrix": {
-      title: "Matriz de riesgos",
-      description: "Asistente para identificar, valorar y priorizar riesgos mediante impacto, probabilidad, respuesta y propietario.",
-      nextStep: "Futuro artefacto asistido por IA con trazabilidad hacia RAID y el informe ejecutivo.",
+      title: "Registro y Matriz de Riesgos",
+      status: "Piloto Fase II",
+      riskWorkspace: true,
+      description: "Identificación, valoración y priorización de riesgos en escala 1–5, con respuesta, mitigación, responsable y vínculo opcional a la EDT.",
+      nextStep: "Contrato de datos implementado. La siguiente iteración incorporará captura, matriz 5×5 y sugerencias de IA con aprobación humana.",
       icon: "△"
+    },
+    wbs: {
+      title: "EDT / WBS",
+      status: "Piloto Fase II",
+      description: "Descomposición jerárquica del alcance en entregables y paquetes de trabajo, usando códigos EDT reutilizables por cronograma y riesgos.",
+      nextStep: "Contrato jerárquico implementado con validación de códigos, padres, responsables, entregables y horas planificadas.",
+      icon: "⌘"
     },
     raid: {
       title: "RAID",
@@ -68,9 +84,10 @@
       icon: "⌘"
     },
     schedule: {
-      title: "Cronograma",
-      description: "Planificación de hitos, actividades, dependencias y fechas comprometidas del proyecto.",
-      nextStep: "Futuro módulo de apoyo para estructurar y revisar el cronograma base.",
+      title: "Plan / Cronograma",
+      status: "Piloto Fase II",
+      description: "Planificación semanal por horas, actividades y dependencias, vinculada a los paquetes de trabajo de la EDT.",
+      nextStep: "Contrato implementado para calcular horas y semanas. La vista Gantt y la captura interactiva serán la siguiente iteración.",
       icon: "▥"
     },
     communications: {
@@ -125,7 +142,13 @@
       loading.hidden = true;
       error.hidden = true;
       dashboard.hidden = true;
-      placeholder.hidden = false;
+      riskWorkspace.hidden = !module.riskWorkspace;
+      placeholder.hidden = Boolean(module.riskWorkspace);
+      if (module.riskWorkspace) {
+        renderRiskMatrix();
+        return;
+      }
+      moduleStatus.textContent = module.status || "Módulo planificado";
       moduleTitle.textContent = module.title;
       moduleDescription.textContent = module.description;
       moduleNextStep.textContent = module.nextStep;
@@ -133,6 +156,7 @@
       return;
     }
 
+    riskWorkspace.hidden = true;
     placeholder.hidden = true;
     if (fatalError) {
       loading.hidden = true;
@@ -142,8 +166,12 @@
       return;
     }
     error.hidden = true;
-    loading.hidden = dashboardReady;
-    dashboard.hidden = !dashboardReady;
+    const currentDashboardReady = (
+      dashboardReady &&
+      module.dashboardKey === activeDashboardKey
+    );
+    loading.hidden = currentDashboardReady;
+    dashboard.hidden = !currentDashboardReady;
   }
 
   navItems.forEach((item) => {
@@ -152,18 +180,376 @@
     });
   });
   window.addEventListener("hashchange", renderView);
+  window.addEventListener("hashchange", async () => {
+    const module = modules[currentView()];
+    if (!module.dashboard || module.dashboardKey === activeDashboardKey) {
+      return;
+    }
+    const idToken = getToken();
+    if (idToken) {
+      try {
+        await loadDashboard(idToken, module.dashboardKey);
+      } catch (reason) {
+        showError(reason.message || "No fue posible cambiar de dashboard.");
+      }
+    }
+  });
 
   function showError(message) {
     fatalError = message;
     renderView();
   }
 
+  function riskLevel(risk) {
+    const score = risk.probability * risk.impact;
+    if (score <= 4) return "Bajo";
+    if (score <= 9) return "Medio";
+    if (score <= 16) return "Alto";
+    return "Crítico";
+  }
+
+  function riskClass(level) {
+    return `risk-level-${level.toLowerCase().replace("í", "i")}`;
+  }
+
+  function restoreRiskReviews() {
+    if (!riskReviewKey) return;
+    try {
+      const reviews = JSON.parse(
+        window.sessionStorage.getItem(riskReviewKey) || "{}"
+      );
+      riskRecords = riskRecords.map((risk) => ({
+        ...risk,
+        ...(reviews[risk.id] || {})
+      }));
+    } catch {
+      window.sessionStorage.removeItem(riskReviewKey);
+    }
+  }
+
+  function saveRiskReview(risk) {
+    if (!riskReviewKey) return;
+    const reviews = JSON.parse(
+      window.sessionStorage.getItem(riskReviewKey) || "{}"
+    );
+    reviews[risk.id] = { owner: risk.owner, status: risk.status };
+    window.sessionStorage.setItem(riskReviewKey, JSON.stringify(reviews));
+  }
+
+  function fillFilter(selectId, values) {
+    const select = document.getElementById(selectId);
+    if (select.options.length > 1) return;
+    [...new Set(values)].sort().forEach((value) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = value;
+      select.appendChild(option);
+    });
+  }
+
+  function filteredRisks() {
+    const level = document.getElementById("risk-level-filter").value;
+    const category = document.getElementById("risk-category-filter").value;
+    const status = document.getElementById("risk-status-filter").value;
+    return riskRecords.filter((risk) => (
+      (!level || riskLevel(risk) === level) &&
+      (!category || risk.category === category) &&
+      (!status || risk.status === status)
+    ));
+  }
+
+  function renderRiskSummary() {
+    const critical = riskRecords.filter(
+      (risk) => riskLevel(risk) === "Crítico"
+    ).length;
+    const high = riskRecords.filter(
+      (risk) => riskLevel(risk) === "Alto"
+    ).length;
+    const reviewed = riskRecords.filter(
+      (risk) => ["Revisado", "Aprobado", "Descartado"].includes(risk.status)
+    ).length;
+    document.getElementById("risk-total").textContent = riskRecords.length;
+    document.getElementById("risk-critical").textContent = critical;
+    document.getElementById("risk-high").textContent = high;
+    document.getElementById("risk-reviewed").textContent = (
+      `${Math.round((reviewed / Math.max(riskRecords.length, 1)) * 100)}%`
+    );
+  }
+
+  function renderRiskTable() {
+    const body = document.getElementById("risk-table-body");
+    body.replaceChildren();
+    filteredRisks().forEach((risk) => {
+      const level = riskLevel(risk);
+      const row = document.createElement("tr");
+      row.tabIndex = 0;
+      row.dataset.riskId = risk.id;
+      [
+        risk.id,
+        risk.title,
+        risk.category,
+        `${risk.probability}×${risk.impact} = ${risk.probability * risk.impact}`,
+        level,
+        risk.status
+      ].forEach((value, index) => {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        if (index === 4) cell.className = riskClass(level);
+        row.appendChild(cell);
+      });
+      const open = () => openRiskDetail(risk.id);
+      row.addEventListener("click", open);
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") open();
+      });
+      body.appendChild(row);
+    });
+  }
+
+  function renderRiskHeatmap() {
+    const heatmap = document.getElementById("risk-heatmap");
+    heatmap.replaceChildren();
+    for (let impact = 5; impact >= 1; impact -= 1) {
+      for (let probability = 1; probability <= 5; probability += 1) {
+        const count = riskRecords.filter((risk) => (
+          risk.impact === impact && risk.probability === probability
+        )).length;
+        const score = impact * probability;
+        const level = riskLevel({ probability, impact });
+        const cell = document.createElement("div");
+        cell.className = `risk-heatmap-cell ${riskClass(level)}`;
+        cell.title = `Probabilidad ${probability} · Impacto ${impact}`;
+        const scoreElement = document.createElement("span");
+        scoreElement.textContent = score;
+        const countElement = document.createElement("strong");
+        countElement.textContent = count || "";
+        cell.append(scoreElement, countElement);
+        heatmap.appendChild(cell);
+      }
+    }
+  }
+
+  function openRiskDetail(riskId) {
+    const risk = riskRecords.find((item) => item.id === riskId);
+    if (!risk) return;
+    selectedRiskId = riskId;
+    document.getElementById("risk-detail-id").textContent = (
+      `${risk.id} · ${risk.category} · ${riskLevel(risk)}`
+    );
+    document.getElementById("risk-detail-title").textContent = risk.title;
+    document.getElementById("risk-detail-cause").textContent = risk.cause;
+    document.getElementById("risk-detail-consequence").textContent = (
+      risk.consequence
+    );
+    document.getElementById("risk-detail-mitigation").textContent = (
+      risk.mitigation
+    );
+    document.getElementById("risk-detail-evidence").textContent = (
+      `${risk.evidence} · ${risk.evidenceType} · Confianza ${risk.confidence}`
+    );
+    document.getElementById("risk-detail-owner").value = risk.owner;
+    document.getElementById("risk-detail-status").value = risk.status;
+    document.getElementById("risk-detail").hidden = false;
+  }
+
+  function renderRiskMatrix() {
+    const hasResults = riskRecords.length > 0;
+    document.getElementById("risk-results").hidden = !hasResults;
+    document.getElementById("risk-project-summary").textContent = (
+      hasResults
+        ? `${riskProject.name || "Proyecto"} · ${riskProject.analysisId || ""}`
+        : "Carga una propuesta PDF digital o PPTX para iniciar el análisis."
+    );
+    document.getElementById("risk-source-name").textContent = (
+      hasResults ? "Documentos procesados en S3 privado" : "Pendiente de carga"
+    );
+    if (!hasResults) return;
+    fillFilter("risk-level-filter", riskRecords.map(riskLevel));
+    fillFilter(
+      "risk-category-filter",
+      riskRecords.map((risk) => risk.category)
+    );
+    fillFilter(
+      "risk-status-filter",
+      ["Propuesto", "Revisado", "Aprobado", "Descartado"]
+    );
+    renderRiskSummary();
+    renderRiskTable();
+    renderRiskHeatmap();
+  }
+
+  ["risk-level-filter", "risk-category-filter", "risk-status-filter"]
+    .forEach((id) => {
+      document.getElementById(id).addEventListener("change", renderRiskTable);
+    });
+  document.getElementById("risk-detail-close").addEventListener("click", () => {
+    document.getElementById("risk-detail").hidden = true;
+  });
+  document.getElementById("risk-detail-save").addEventListener("click", () => {
+    const risk = riskRecords.find((item) => item.id === selectedRiskId);
+    if (!risk) return;
+    risk.owner = document.getElementById("risk-detail-owner").value.trim();
+    risk.status = document.getElementById("risk-detail-status").value;
+    saveRiskReview(risk);
+    renderRiskMatrix();
+  });
+
+  function setRiskProgress(title, message, visible = true) {
+    document.getElementById("risk-analysis-progress").hidden = !visible;
+    document.getElementById("risk-progress-title").textContent = title;
+    document.getElementById("risk-progress-message").textContent = message;
+  }
+
+  async function riskApi(path, options = {}) {
+    const token = getToken();
+    if (!token) {
+      await beginLogin();
+      throw new Error("La sesión expiró.");
+    }
+    const response = await window.fetch(`${config.riskApiUrl}${path}`, {
+      ...options,
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        ...(options.headers || {})
+      },
+      cache: "no-store"
+    });
+    if (response.status === 401 || response.status === 403) {
+      window.sessionStorage.removeItem(tokenKey);
+      await beginLogin();
+      throw new Error("La sesión expiró.");
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.message || "Falló la solicitud de análisis.");
+    }
+    return payload;
+  }
+
+  function validateRiskFiles(files) {
+    if (!files.length || files[0].role !== "proposal") {
+      throw new Error("Selecciona la propuesta principal en PDF digital o PPTX.");
+    }
+    if (files.length > 3) {
+      throw new Error("Solo se permiten tres documentos por análisis.");
+    }
+    files.forEach(({ file, role }) => {
+      const extension = file.name.toLowerCase().split(".").pop();
+      if (file.size > 20 * 1024 * 1024) {
+        throw new Error(`${file.name} supera el límite de 20 MB.`);
+      }
+      if (role === "proposal" && !["pdf", "pptx"].includes(extension)) {
+        throw new Error("La propuesta principal debe ser PDF digital o PPTX.");
+      }
+      if (!["pdf", "pptx"].includes(extension)) {
+        throw new Error(`Formato no permitido: ${file.name}.`);
+      }
+    });
+  }
+
+  async function uploadRiskFiles(uploads, files) {
+    for (let index = 0; index < uploads.length; index += 1) {
+      const form = new FormData();
+      Object.entries(uploads[index].fields).forEach(([key, value]) => {
+        form.append(key, value);
+      });
+      form.append("file", files[index].file);
+      const response = await window.fetch(uploads[index].url, {
+        method: "POST",
+        body: form
+      });
+      if (!response.ok) {
+        throw new Error(`No fue posible cargar ${files[index].file.name}.`);
+      }
+    }
+  }
+
+  function delay(milliseconds) {
+    return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+  }
+
+  async function waitForRiskAnalysis(analysisId) {
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      const result = await riskApi(`/analyses/${analysisId}`);
+      if (result.status === "COMPLETED") return result;
+      if (result.status === "FAILED") {
+        throw new Error(result.message || "El análisis no pudo completarse.");
+      }
+      setRiskProgress(
+        "Analizando documentos",
+        "Extrayendo evidencia y priorizando hasta 10 riesgos."
+      );
+      await delay(3000);
+    }
+    throw new Error("El análisis superó el tiempo máximo de espera.");
+  }
+
+  async function generateRiskAnalysis() {
+    const button = document.getElementById("risk-generate");
+    const projectName = document.getElementById("risk-project-name").value.trim();
+    const proposal = document.getElementById("risk-proposal-file").files[0];
+    const sow = document.getElementById("risk-sow-file").files[0];
+    const nda = document.getElementById("risk-nda-file").files[0];
+    const files = [
+      proposal && { file: proposal, role: "proposal" },
+      sow && { file: sow, role: "sow" },
+      nda && { file: nda, role: "nda" }
+    ].filter(Boolean);
+    try {
+      validateRiskFiles(files);
+      button.disabled = true;
+      setRiskProgress("Preparando carga", "Creando un espacio privado en DEV.");
+      const created = await riskApi("/analyses", {
+        method: "POST",
+        body: JSON.stringify({
+          project: { name: projectName || "Proyecto sin nombre" },
+          files: files.map(({ file, role }) => ({
+            name: file.name,
+            role,
+            contentType: file.type || "application/octet-stream"
+          }))
+        })
+      });
+      setRiskProgress("Cargando documentos", "Los archivos se cifran en S3 DEV.");
+      await uploadRiskFiles(created.uploads, files);
+      await riskApi(`/analyses/${created.analysisId}/start`, {
+        method: "POST",
+        body: "{}"
+      });
+      const result = await waitForRiskAnalysis(created.analysisId);
+      riskProject = {
+        ...(result.project || {}),
+        analysisId: result.analysisId
+      };
+      riskRecords = (result.risks || []).map((risk) => ({ ...risk }));
+      riskReviewKey = `pmo-risk-reviews-${result.analysisId}`;
+      restoreRiskReviews();
+      renderRiskMatrix();
+      setRiskProgress(
+        "Análisis completado",
+        `${riskRecords.length} riesgos generados para revisión humana.`
+      );
+    } catch (reason) {
+      setRiskProgress("No fue posible completar el análisis", reason.message);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  document.getElementById("risk-generate").addEventListener(
+    "click",
+    generateRiskAnalysis
+  );
+
   function validateConfig() {
     const required = [
       "portalUrl",
       "cognitoDomain",
       "userPoolClientId",
-      "embedApiUrl"
+      "embedApiUrl",
+      "projectManagerDashboardId",
+      "riskApiUrl"
     ];
     return required.every(
       (field) => config[field] && !config[field].includes("__")
@@ -270,9 +656,14 @@
     window.history.replaceState({}, document.title, window.location.hash || "/");
   }
 
-  async function loadDashboard(idToken) {
+  async function loadDashboard(idToken, dashboardKey) {
     loadingMessage.textContent = "Generando una sesión privada de QuickSight.";
-    const response = await window.fetch(config.embedApiUrl, {
+    dashboardReady = false;
+    dashboard.hidden = true;
+    loading.hidden = false;
+    const url = new URL(config.embedApiUrl);
+    url.searchParams.set("dashboard", dashboardKey);
+    const response = await window.fetch(url, {
       method: "GET",
       headers: { authorization: `Bearer ${idToken}` },
       cache: "no-store"
@@ -291,6 +682,7 @@
     }
     dashboard.addEventListener("load", () => {
       dashboardReady = true;
+      activeDashboardKey = dashboardKey;
       renderView();
     }, { once: true });
     dashboard.src = payload.embedUrl;
@@ -326,7 +718,10 @@
       await beginLogin();
       return;
     }
-    await loadDashboard(idToken);
+    const module = modules[currentView()];
+    if (module.dashboard) {
+      await loadDashboard(idToken, module.dashboardKey);
+    }
   }
 
   start().catch((reason) => {

@@ -25,6 +25,8 @@ integración y no deben cambiarse sin una decisión explícita.
 - `src/exporter/`: extracción, transformación y publicación en S3.
 - `quicksight/`: modelo semántico, análisis, dashboard y validadores.
 - `portal/`: portal ejecutivo publicado mediante S3 y CloudFront.
+- `src/intelligence/`: contratos de artefactos y validaciones de Fase II.
+- `cloudformation/risk-analysis-dev.yaml`: generador serverless de riesgos DEV.
 - `cloudformation/`: infraestructura declarativa.
 - `scripts/`: despliegue, validación y snapshots.
 - `tests/`: pruebas automatizadas.
@@ -82,6 +84,9 @@ en GitHub.
 
 La preparación de la Fase 2 y la migración del ETL a ECS Fargate están
 descritas en [docs/PILOT_PHASE_2.md](docs/PILOT_PHASE_2.md).
+
+El generador de Matriz de Riesgos y sus límites operativos se documentan en
+[docs/RISK_ANALYSIS_PILOT.md](docs/RISK_ANALYSIS_PILOT.md).
 
 ## Seguridad
 

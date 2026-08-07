@@ -13,6 +13,8 @@ ANALYSIS_ID = "c1030556-faa8-4110-8ca3-1fd979a68993"
 PROTECTED_ANALYSIS_ID = "pmo-executive-analysis-v2"
 PROJECTS_DATASET_ID = "pmo-executive-semantic-v1-1"
 TASKS_DATASET_ID = "aff40eb2-5662-4b7d-bf3a-7c1f4644104c"
+PROJECT_MANAGER_DASHBOARD_ID = "pmo-project-manager-dashboard-v1"
+PROJECT_MANAGER_DASHBOARD_NAME = "Project Manager Dashboard"
 PROJECTS_IDENTIFIER = "PMOExecutive"
 TASKS_IDENTIFIER = "PMOTasks"
 
@@ -850,6 +852,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", default="pmo-asana")
     parser.add_argument("--deploy", action="store_true")
+    parser.add_argument("--publish-dashboard", action="store_true")
     args = parser.parse_args()
 
     if ANALYSIS_ID == PROTECTED_ANALYSIS_ID:
@@ -869,7 +872,7 @@ def main() -> None:
         f"calculated_fields={len(definition.get('CalculatedFields', []))}"
     )
 
-    if not args.deploy:
+    if not args.deploy and not args.publish_dashboard:
         print("Sin cambios. Use --deploy para publicar.")
         return
 
@@ -883,12 +886,55 @@ def main() -> None:
     if theme_arn:
         request["ThemeArn"] = theme_arn
 
-    response = client.update_analysis(**request)
-    print(
-        "Actualización enviada: "
-        f"status={response['Status']}, "
-        f"analysis_id={ANALYSIS_ID}"
-    )
+    if args.deploy:
+        response = client.update_analysis(**request)
+        print(
+            "Actualización enviada: "
+            f"status={response['Status']}, "
+            f"analysis_id={ANALYSIS_ID}"
+        )
+
+    if args.publish_dashboard:
+        dashboard_request = {
+            "AwsAccountId": ACCOUNT_ID,
+            "DashboardId": PROJECT_MANAGER_DASHBOARD_ID,
+            "Name": PROJECT_MANAGER_DASHBOARD_NAME,
+            "Definition": definition,
+            "ValidationStrategy": {"Mode": "LENIENT"},
+            "VersionDescription": "Project Manager Analysis published from Git",
+        }
+        if theme_arn:
+            dashboard_request["ThemeArn"] = theme_arn
+        try:
+            client.describe_dashboard(
+                AwsAccountId=ACCOUNT_ID,
+                DashboardId=PROJECT_MANAGER_DASHBOARD_ID,
+            )
+            response = client.update_dashboard(**dashboard_request)
+        except client.exceptions.ResourceNotFoundException:
+            response = client.create_dashboard(
+                **dashboard_request,
+                Permissions=[
+                    {
+                        "Principal": (
+                            f"arn:aws:quicksight:{REGION}:{ACCOUNT_ID}:"
+                            "user/default/"
+                            "AWSReservedSSO_AWSAdministratorAccess_"
+                            "cd675fd79d1b75e0/dbarrios"
+                        ),
+                        "Actions": [
+                            "quicksight:DescribeDashboard",
+                            "quicksight:ListDashboardVersions",
+                            "quicksight:QueryDashboard",
+                        ],
+                    }
+                ],
+            )
+        print(
+            "Dashboard enviado: "
+            f"status={response['Status']}, "
+            f"dashboard_id={PROJECT_MANAGER_DASHBOARD_ID}"
+        )
 
 
 if __name__ == "__main__":

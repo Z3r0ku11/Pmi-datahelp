@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      PYTHONPATH: src/exporter
+      PYTHONPATH: src:src/exporter
 
     steps:
       - name: Checkout

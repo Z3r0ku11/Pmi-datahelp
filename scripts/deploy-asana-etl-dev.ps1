@@ -5,6 +5,7 @@ param(
     [string]$StackName = "pmo-ip-asana-etl-dev",
     [string]$DataBucketName = "",
     [string]$ImageTag = "",
+    [string]$ScheduleExpression = "cron(0 0/8 * * ? *)",
     [switch]$InfrastructureOnly,
     [switch]$RunTask
 )
@@ -67,12 +68,17 @@ Invoke-Aws cloudformation deploy `
     --no-fail-on-empty-changeset `
     --parameter-overrides `
     "DataBucketName=$DataBucketName" `
-    "ContainerImageTag=$ImageTag"
+    "ContainerImageTag=$ImageTag" `
+    "ScheduleExpression=$ScheduleExpression" `
+    --tags `
+    "Application=PMO-Intelligence-Platform" `
+    "Environment=dev" `
+    "aws-apn-id=pc:9lf3vm94ks7nr0gbpdatez0l8"
 
 if ($InfrastructureOnly) {
     Write-Output "Infraestructura DEV lista."
     Write-Output "Bucket DEV: $DataBucketName"
-    Write-Output "El calendario permanece deshabilitado."
+    Write-Output "Calendario habilitado: todos los días a las 00:00 America/Santiago."
     exit 0
 }
 
@@ -99,7 +105,7 @@ if (-not $RunTask) {
     Write-Output "Infraestructura e imagen DEV listas."
     Write-Output "Bucket DEV: $DataBucketName"
     Write-Output "Imagen: $repositoryUri`:$ImageTag"
-    Write-Output "El calendario permanece deshabilitado."
+    Write-Output "Calendario habilitado: todos los días a las 00:00 America/Santiago."
     exit 0
 }
 
