@@ -1,5 +1,8 @@
+import logging
 import unicodedata
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_text(value: str | None) -> str:
@@ -95,3 +98,56 @@ def get_custom_field_value(
                 return ", ".join(names)
 
     return ""
+
+
+def get_custom_field_numeric_value(
+    custom_fields: list[dict[str, Any]],
+    field_name: str,
+) -> float | None:
+    """
+    Extrae el valor numérico de un custom field de Asana.
+
+    Retorna float si el campo tiene un valor numérico válido,
+    None en caso contrario.
+    """
+    normalized_target = normalize_text(field_name)
+
+    for custom_field in custom_fields:
+        current_name = normalize_text(
+            custom_field.get("name")
+        )
+
+        if current_name != normalized_target:
+            continue
+
+        number_value = custom_field.get("number_value")
+
+        if number_value is not None:
+            try:
+                return float(number_value)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "Campo '%s' tiene number_value no convertible: %s",
+                    field_name,
+                    number_value,
+                )
+                return None
+
+        # Fallback: intentar parsear display_value como número
+        display_value = custom_field.get("display_value")
+
+        if display_value not in (None, ""):
+            cleaned = (
+                str(display_value)
+                .strip()
+                .replace(",", "")
+                .replace("$", "")
+                .replace(" ", "")
+            )
+
+            try:
+                return float(cleaned)
+            except (TypeError, ValueError):
+                return None
+
+    return None

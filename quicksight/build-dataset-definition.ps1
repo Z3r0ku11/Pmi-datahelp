@@ -49,11 +49,6 @@ $projectStringColumns = @(
     "Tipo Proyecto",
     "Segmento empresa",
     "Fecha Termino Efectiva",
-    "Pago Cliente",
-    "Fondos AWS",
-    "Incentivos",
-    "Creditos AWS",
-    "Inversion Morris",
     "Clasificación",
     "PROJECT ID",
     "LATEST STATUS UPDATE",
@@ -69,7 +64,12 @@ $projectIntegerColumns = @(
 
 $projectDecimalColumns = @(
     "Total presupuestado",
-    "Horas Planificadas"
+    "Horas Planificadas",
+    "Pago Cliente",
+    "Fondos AWS",
+    "Incentivos",
+    "Creditos AWS",
+    "Inversion Morris"
 )
 
 $projectDateFormats = [ordered]@{

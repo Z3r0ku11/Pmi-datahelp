@@ -13,20 +13,59 @@ class TaskService:
     def execute(
         self,
         projects: list[dict[str, Any]],
+        modified_since: str | None = None,
+        previous_tasks: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
+        """
+        Extract tasks from Asana.
+
+        If modified_since is provided:
+        - Projects not modified since that timestamp reuse previous_tasks
+        - Projects modified after that timestamp get fresh data from Asana
+        """
         task_records: list[dict[str, Any]] = []
+
+        # Index previous tasks by project_gid for reuse
+        previous_by_project: dict[str, list[dict[str, Any]]] = {}
+        if previous_tasks and modified_since:
+            for task in previous_tasks:
+                pgid = str(task.get("project_gid", "")).strip()
+                if pgid:
+                    previous_by_project.setdefault(pgid, []).append(task)
+
+        skipped_count = 0
 
         for project_index, project in enumerate(projects, start=1):
             project_id = str(project.get("gid", "")).strip()
             project_name = str(project.get("name", "")).strip()
-            responsible = str(
-                project.get("responsable_proyecto", "")
-            ).strip()
 
             if not project_id:
                 logger.warning(
                     "Proyecto omitido porque no tiene GID | nombre=%s",
                     project_name,
+                )
+                continue
+
+            # Check if project was modified after last sync
+            project_modified_at = str(
+                project.get("modified_at", "")
+            ).strip()
+
+            if (
+                modified_since
+                and project_modified_at
+                and project_modified_at < modified_since
+                and project_id in previous_by_project
+            ):
+                # Reuse previous task data
+                task_records.extend(previous_by_project[project_id])
+                skipped_count += 1
+                logger.info(
+                    "Proyecto sin cambios: reutilizando tareas anteriores | "
+                    "gid=%s | nombre=%s | tareas=%s",
+                    project_id,
+                    project_name,
+                    len(previous_by_project[project_id]),
                 )
                 continue
 
@@ -117,6 +156,13 @@ class TaskService:
             "Extracción de tareas finalizada | registros=%s",
             len(task_records),
         )
+
+        if skipped_count:
+            logger.info(
+                "Proyectos sin cambios reutilizados: %s de %s",
+                skipped_count,
+                len(projects),
+            )
 
         return task_records
 

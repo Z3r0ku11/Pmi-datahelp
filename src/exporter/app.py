@@ -17,7 +17,7 @@ from project_metrics_service import ProjectMetricsService
 from project_service import ProjectService
 from s3_repository import S3Repository
 from task_service import TaskService
-from utils import get_custom_field_value
+from utils import get_custom_field_value, get_custom_field_numeric_value
 
 logging.basicConfig(
     level=logging.INFO,
@@ -85,6 +85,16 @@ PROJECT_CUSTOM_FIELDS = [
     "Clasificación",
 ]
 
+NUMERIC_CUSTOM_FIELDS = {
+    "Total presupuestado",
+    "Horas Planificadas",
+    "Pago Cliente",
+    "Fondos AWS",
+    "Incentivos",
+    "Creditos AWS",
+    "Inversion Morris",
+}
+
 PROJECT_STATUS_LABELS = {
     "green": "En Curso",
     "yellow": "En riesgo",
@@ -93,6 +103,8 @@ PROJECT_STATUS_LABELS = {
     "complete": "Finalizado",
     "dropped": "Descartado",
 }
+
+SYNC_METADATA_KEY = "metadata/last_sync.json"
 
 
 TASK_FIELDS = [
@@ -219,10 +231,16 @@ def build_project_records(
         }
 
         for field_name in PROJECT_CUSTOM_FIELDS:
-            record[field_name] = get_custom_field_value(
-                custom_fields=custom_fields,
-                field_name=field_name,
-            )
+            if field_name in NUMERIC_CUSTOM_FIELDS:
+                record[field_name] = get_custom_field_numeric_value(
+                    custom_fields=custom_fields,
+                    field_name=field_name,
+                )
+            else:
+                record[field_name] = get_custom_field_value(
+                    custom_fields=custom_fields,
+                    field_name=field_name,
+                )
 
         records.append(record)
 
@@ -361,6 +379,26 @@ def lambda_handler(
         metrics_service = ProjectMetricsService()
         health_snapshot_service = HealthSnapshotService()
 
+        # Read last sync timestamp for incremental extraction
+        last_sync_metadata = s3_repository.read_json(
+            SYNC_METADATA_KEY
+        )
+        last_sync_timestamp = None
+        if last_sync_metadata:
+            last_sync_timestamp = last_sync_metadata.get(
+                "last_sync_at"
+            )
+            logger.info(
+                "Última sincronización: %s",
+                last_sync_timestamp,
+            )
+        else:
+            logger.info(
+                "Primera ejecución: extracción completa"
+            )
+
+        sync_start = datetime.now(timezone.utc).isoformat()
+
         projects_path = (
             output_directory / "projects.csv"
         )
@@ -397,7 +435,13 @@ def lambda_handler(
         )
 
         tasks_result = task_service.execute(
-            projects
+            projects,
+            modified_since=last_sync_timestamp,
+            previous_tasks=(
+                s3_repository.read_csv(settings.tasks_key)
+                if last_sync_timestamp
+                else None
+            ),
         )
 
         tasks = validate_task_records(
@@ -556,6 +600,24 @@ def lambda_handler(
         s3_repository.upload_file(
             local_path=str(portfolio_health_snapshot_file),
             object_key=portfolio_health_snapshot_key,
+        )
+
+        # -----------------------------------------------------
+        # 6. Guardar timestamp de sincronización
+        # -----------------------------------------------------
+        s3_repository.write_json(
+            object_key=SYNC_METADATA_KEY,
+            data={
+                "last_sync_at": sync_start,
+                "request_id": request_id,
+                "projects_count": len(project_records),
+                "tasks_count": len(tasks),
+            },
+        )
+
+        logger.info(
+            "Metadata de sincronización guardada | timestamp=%s",
+            sync_start,
         )
 
         result = {

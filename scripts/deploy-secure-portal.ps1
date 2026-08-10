@@ -3,10 +3,19 @@ param(
     [ValidateSet("dev", "prod", "all")]
     [string]$Environment = "all",
     [string]$AwsRegion = "us-east-1",
+    [string]$ApplicationVersion = "1.1.0-dev",
+    [string]$DevDataBucket = (
+        "pmo-intelligence-platform-dev-664858858204-us-east-1"
+    ),
+    [string]$ProdDataBucket = (
+        "pmo-asana-analytics-us-east-1-664858858204"
+    ),
     [string]$AwsAccountId = "664858858204",
     [string]$DashboardId = "pmo-executive-dashboard-v2",
     [string]$ProjectManagerDashboardId = "53543d09-075c-427b-aadf-fefa61a9e526",
     [string]$RiskApiUrl = "",
+    [string]$FollowupApiUrl = "",
+    [string]$MinutesApiUrl = "",
     [string]$PortalUserEmail = "dbarrios@morrisopazo.com",
     [string]$QuickSightUserArn = (
         "arn:aws:quicksight:us-east-1:664858858204:user/default/" +
@@ -62,6 +71,44 @@ if (-not $RiskApiUrl) {
     }
 }
 
+if (-not $FollowupApiUrl) {
+    $FollowupApiUrl = (
+        aws cloudformation describe-stacks `
+            --stack-name "pmo-project-followup-dev" `
+            --region $AwsRegion `
+            --query "Stacks[0].Outputs[?OutputKey=='FollowupApiUrl'].OutputValue | [0]" `
+            --output text `
+            --no-cli-pager |
+        Out-String
+    ).Trim()
+    if (
+        $LASTEXITCODE -ne 0 -or
+        -not $FollowupApiUrl -or
+        $FollowupApiUrl -eq "None"
+    ) {
+        throw "No fue posible resolver FollowupApiUrl desde el stack DEV."
+    }
+}
+
+if (-not $MinutesApiUrl) {
+    $MinutesApiUrl = (
+        aws cloudformation describe-stacks `
+            --stack-name "pmo-ip-minutes-dev" `
+            --region $AwsRegion `
+            --query "Stacks[0].Outputs[?OutputKey=='MinutesApiUrl'].OutputValue | [0]" `
+            --output text `
+            --no-cli-pager |
+        Out-String
+    ).Trim()
+    if (
+        $LASTEXITCODE -ne 0 -or
+        -not $MinutesApiUrl -or
+        $MinutesApiUrl -eq "None"
+    ) {
+        $MinutesApiUrl = ""
+    }
+}
+
 $portalOutputs = @{}
 foreach ($targetEnvironment in $allEnvironments) {
     $stackName = "pmo-executive-portal-$targetEnvironment"
@@ -75,6 +122,7 @@ foreach ($targetEnvironment in $allEnvironments) {
             --tags `
                 "Application=PMO-Executive-Portal" `
                 "Environment=$targetEnvironment" `
+                "aws-apn-id=pc:9lf3vm94ks7nr0gbpdatez0l8" `
             --region $AwsRegion `
             --no-fail-on-empty-changeset `
             --no-cli-pager
@@ -115,6 +163,7 @@ aws cloudformation deploy `
     --tags `
         "Application=PMO-Executive-Portal" `
         "Environment=shared" `
+        "aws-apn-id=pc:9lf3vm94ks7nr0gbpdatez0l8" `
     --region $AwsRegion `
     --no-fail-on-empty-changeset `
     --no-cli-pager
@@ -157,6 +206,17 @@ foreach ($targetEnvironment in $publishEnvironments) {
     Copy-Item `
         -LiteralPath (Join-Path $portalSource "app.js") `
         -Destination (Join-Path $buildDirectory "app-v4.js")
+    Copy-Item `
+        -LiteralPath (Join-Path $portalSource "morris-opazo.png") `
+        -Destination (Join-Path $buildDirectory "morris-opazo.png")
+    $resourceSource = Join-Path (
+        Join-Path $repositoryRoot "knowledge-base\images"
+    ) "original-pmo"
+    $resourceBuild = Join-Path $buildDirectory "resources"
+    New-Item -ItemType Directory -Path $resourceBuild | Out-Null
+    Copy-Item `
+        -Path (Join-Path $resourceSource "*.png") `
+        -Destination $resourceBuild
 
     $config = Get-Content -Raw (
         Join-Path $portalSource "config.template.js"
@@ -164,6 +224,54 @@ foreach ($targetEnvironment in $publishEnvironments) {
     $config = $config.Replace(
         "__ENVIRONMENT__",
         $targetEnvironment.ToUpperInvariant()
+    )
+    $santiagoTimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById(
+        "Pacific SA Standard Time"
+    )
+    $upgradeTime = [System.TimeZoneInfo]::ConvertTimeFromUtc(
+        [DateTime]::UtcNow,
+        $santiagoTimeZone
+    )
+    $upgradeLabel = $upgradeTime.ToString("dd-MM-yyyy HH:mm") +
+        " America/Santiago"
+    $dataBucket = if ($targetEnvironment -eq "dev") {
+        $DevDataBucket
+    } else {
+        $ProdDataBucket
+    }
+    $asanaObject = aws s3api head-object `
+        --bucket $dataBucket `
+        --key "projects/projects.csv" `
+        --region $AwsRegion `
+        --output json `
+        --no-cli-pager | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0) {
+        throw "No fue posible consultar la extracción Asana en $dataBucket"
+    }
+    $asanaUpgradeUtc = if ($asanaObject.LastModified -is [DateTime]) {
+        $asanaObject.LastModified.ToUniversalTime()
+    } else {
+        [DateTimeOffset]::Parse(
+            [string]$asanaObject.LastModified,
+            [Globalization.CultureInfo]::InvariantCulture,
+            [Globalization.DateTimeStyles]::RoundtripKind
+        ).UtcDateTime
+    }
+    $asanaUpgradeTime = [System.TimeZoneInfo]::ConvertTimeFromUtc(
+        $asanaUpgradeUtc,
+        $santiagoTimeZone
+    )
+    $asanaUpgradeLabel = $asanaUpgradeTime.ToString("dd-MM-yyyy HH:mm") +
+        " America/Santiago"
+    $config = $config.Replace("__APP_VERSION__", $ApplicationVersion)
+    $config = $config.Replace("__LAST_UPGRADE__", $upgradeLabel)
+    $config = $config.Replace(
+        "__ASANA_EXTRACTION_VERSION__",
+        $asanaObject.VersionId
+    )
+    $config = $config.Replace(
+        "__ASANA_EXTRACTION_TIME__",
+        $asanaUpgradeLabel
     )
     $config = $config.Replace("__DASHBOARD_ID__", $DashboardId)
     $config = $config.Replace(
@@ -184,6 +292,8 @@ foreach ($targetEnvironment in $publishEnvironments) {
         $authOutputs.EmbedApiUrl
     )
     $config = $config.Replace("__RISK_API_URL__", $RiskApiUrl)
+    $config = $config.Replace("__FOLLOWUP_API_URL__", $FollowupApiUrl)
+    $config = $config.Replace("__MINUTES_API_URL__", $MinutesApiUrl)
     Set-Content `
         -LiteralPath (Join-Path $buildDirectory "config.js") `
         -Value $config `
@@ -210,8 +320,26 @@ foreach ($targetEnvironment in $publishEnvironments) {
             Source = "styles-v4.css"
             Target = "styles-v4.css"
             Type = "text/css; charset=utf-8"
+        },
+        @{
+            Source = "morris-opazo.png"
+            Target = "morris-opazo.png"
+            Type = "image/png"
         }
     )
+
+    foreach (
+        $resourceImage in Get-ChildItem `
+            -LiteralPath $resourceBuild `
+            -File `
+            -Filter "*.png"
+    ) {
+        $assets += @{
+            Source = "resources\$($resourceImage.Name)"
+            Target = "resources/$($resourceImage.Name)"
+            Type = "image/png"
+        }
+    }
 
     foreach ($asset in $assets) {
         aws s3 cp `

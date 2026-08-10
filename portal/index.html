@@ -6,11 +6,13 @@
     <meta name="color-scheme" content="dark">
     <title>PMO Executive Portfolio Dashboard</title>
     <link rel="stylesheet" href="styles-v4.css">
+    <script src="https://unpkg.com/docx@9.1.1/build/index.umd.js"></script>
+    <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
   </head>
   <body>
     <header class="header">
       <div class="brand" aria-label="PMO Executive Dashboard">
-        <span class="brand-mark" aria-hidden="true"></span>
+        <img class="brand-logo" src="morris-opazo.png" alt="Morris &amp; Opazo">
         <div>
           <strong>PMO</strong>
           <span>Executive Dashboard</span>
@@ -21,8 +23,13 @@
         <p id="page-subtitle">Strategic Delivery | Portfolio Governance | Executive Decision Making</p>
       </div>
       <div class="environment">
-        <span id="environment">Cargando</span>
+        <div class="release-line">
+          <span id="environment">Cargando</span>
+          <span id="app-version">v--</span>
+        </div>
         <small>Amazon QuickSight · us-east-1</small>
+        <small id="last-upgrade">Último upgrade: --</small>
+        <small id="asana-extraction">Extracción Asana: --</small>
         <button id="logout" type="button" hidden>Cerrar sesión</button>
       </div>
     </header>
@@ -35,27 +42,32 @@
             <span class="nav-icon">◫</span>
             <span>PMO Portfolio Overview</span>
           </button>
-          <button class="nav-item" data-view="project-analysis" type="button">
-            <span class="nav-icon">⌕</span>
-            <span>Project Analysis</span>
-          </button>
           <button class="nav-item" data-view="pm-analysis" type="button">
             <span class="nav-icon">◎</span>
             <span>Project Manager Analysis</span>
           </button>
+          <button class="nav-item" data-view="billing-plan" type="button">
+            <span class="nav-icon">$</span>
+            <span>Plan de Facturación</span>
+          </button>
 
-          <p class="nav-heading nav-heading-spaced">Fase II · Artefactos &amp; IA</p>
-          <button class="nav-item nav-child" data-view="schedule" type="button">Plan / Cronograma</button>
-          <button class="nav-item nav-child" data-view="wbs" type="button">EDT / WBS</button>
-          <button class="nav-item nav-child" data-view="risk-matrix" type="button">Riesgos</button>
-          <button class="nav-item nav-child" data-view="raid" type="button">RAID</button>
-          <button class="nav-item nav-child" data-view="charter" type="button">Project Charter</button>
-          <button class="nav-item nav-child" data-view="raci" type="button">RACI</button>
-          <button class="nav-item nav-child" data-view="communications" type="button">Plan de comunicaciones</button>
-          <button class="nav-item nav-child" data-view="technical-checklist" type="button">Checklist técnico</button>
-          <button class="nav-item nav-child" data-view="executive-report" type="button">Informe ejecutivo</button>
-          <button class="nav-item nav-child" data-view="cutover" type="button">Plan de cutover</button>
-          <button class="nav-item nav-child" data-view="rollback" type="button">Plan de rollback</button>
+          <p class="nav-heading nav-heading-spaced">Artefactos &amp; IA</p>
+          <button class="nav-item" data-view="risk-matrix" type="button">
+            <span class="nav-icon">△</span>
+            <span>Riesgos</span>
+          </button>
+          <button class="nav-item" data-view="planning" type="button">
+            <span class="nav-icon">▥</span>
+            <span>Planificación</span>
+          </button>
+          <button class="nav-item" data-view="minutes" type="button">
+            <span class="nav-icon">✎</span>
+            <span>Minutas y Reportes</span>
+          </button>
+          <button class="nav-item" data-view="resources" type="button">
+            <span class="nav-icon">▧</span>
+            <span>Recursos PMO</span>
+          </button>
         </nav>
         <footer class="sidebar-footer">
           <strong>PMO Office</strong>
@@ -64,6 +76,9 @@
       </aside>
 
       <main>
+        <button id="followup-dashboard-open" class="followup-launch" type="button" hidden>
+          + Registrar seguimiento
+        </button>
         <section id="loading" class="message">
           <div class="spinner" aria-hidden="true"></div>
           <h2>Preparando dashboard</h2>
@@ -173,16 +188,348 @@
           </div>
         </section>
 
-        <iframe
+        <section id="planning-workspace" class="planning-workspace" hidden>
+          <div class="planning-header">
+            <div>
+              <span class="module-badge">Artefacto IA · DEV</span>
+              <h2>Planificación</h2>
+              <p>Extrae hitos, tareas y fechas para construir un cronograma ejecutivo de alto nivel.</p>
+            </div>
+            <div class="planning-source-summary"><span>Formatos</span><strong>PDF · PPTX · XLSX · XLS</strong><small>Máximo 3 archivos · 20 MB cada uno</small></div>
+          </div>
+          <section class="planning-panel planning-upload-panel">
+            <label>Nombre del proyecto<input id="planning-project-name" type="text" maxlength="120" placeholder="Ej. Migración plataforma de datos"></label>
+            <label>Documentos de planificación<input id="planning-files" type="file" accept=".pdf,.pptx,.xlsx,.xls" multiple></label>
+            <button id="planning-generate" type="button">Generar cronograma</button>
+            <small>PDF únicamente digital. La IA propone el cronograma; las fechas deben ser revisadas por el Project Manager.</small>
+            <div id="planning-progress" class="planning-progress" hidden><div class="spinner" aria-hidden="true"></div><div><strong id="planning-progress-title">Preparando análisis</strong><p id="planning-progress-message"></p></div></div>
+          </section>
+          <div id="planning-results" hidden>
+            <div class="planning-kpis">
+              <article><span>Elementos</span><strong id="planning-total">0</strong></article>
+              <article><span>Hitos</span><strong id="planning-milestones">0</strong></article>
+              <article><span>Inicio</span><strong id="planning-start">—</strong></article>
+              <article><span>Término</span><strong id="planning-end">—</strong></article>
+            </div>
+            <section class="planning-panel planning-milestone-panel">
+              <div><h3>Hitos incluidos</h3><p>Selecciona los hitos que deseas destacar en el cronograma y las exportaciones.</p></div>
+              <div id="planning-milestone-selector" class="planning-milestone-selector"></div>
+            </section>
+            <section class="planning-panel planning-timeline-panel">
+              <div class="planning-timeline-heading"><div><h3 id="planning-result-title">Cronograma ejecutivo</h3><p>Línea de tiempo consolidada según evidencia documental.</p></div><div class="planning-timeline-actions"><div id="planning-legend"><span>■ Fase/Actividad</span><span>◆ Hito</span><span>■ Entregable</span></div><div><button id="planning-export-excel" type="button">Exportar Excel</button><button id="planning-export-png" type="button">Exportar PNG</button></div></div></div>
+              <div id="planning-timeline" class="planning-timeline"></div>
+            </section>
+            <section class="planning-panel planning-notes"><div><h3>Supuestos</h3><ul id="planning-assumptions"></ul></div><div><h3>Alertas de información</h3><ul id="planning-warnings"></ul></div></section>
+          </div>
+        </section>
+
+        <section id="minutes-workspace" class="minutes-workspace" hidden>
+          <div class="minutes-header">
+            <div>
+              <span class="module-badge">Artefacto IA &middot; DEV</span>
+              <h2>Minutas y Reportes</h2>
+              <p>Ingresa una transcripci&oacute;n o detalle de sesi&oacute;n para generar una minuta estructurada y un reporte ejecutivo.</p>
+            </div>
+            <div class="minutes-source-summary">
+              <span>Entregables</span>
+              <strong>Minuta + Reporte</strong>
+              <small>Exportable a Word (.docx)</small>
+            </div>
+          </div>
+
+          <section class="minutes-panel minutes-input-panel">
+            <label>Nombre del proyecto<input id="minutes-project-name" type="text" maxlength="120" placeholder="Ej. Migraci&oacute;n plataforma de datos"></label>
+            <label>Transcripci&oacute;n o detalle de la sesi&oacute;n
+              <textarea id="minutes-transcription" rows="12" maxlength="60000" placeholder="Pega aqu&iacute; la transcripci&oacute;n completa de la reuni&oacute;n, notas del facilitador o detalle de la sesi&oacute;n..."></textarea>
+            </label>
+            <div class="minutes-input-actions">
+              <small>M&aacute;ximo 60.000 caracteres &middot; La IA genera la minuta; el contenido debe ser revisado por el responsable.</small>
+              <button id="minutes-generate" type="button">Generar Minuta y Reporte</button>
+            </div>
+            <div id="minutes-progress" class="minutes-progress" hidden>
+              <div class="spinner" aria-hidden="true"></div>
+              <div>
+                <strong id="minutes-progress-title">Procesando transcripci&oacute;n</strong>
+                <p id="minutes-progress-message">Generando minuta y reporte ejecutivo con IA...</p>
+              </div>
+            </div>
+          </section>
+
+          <div id="minutes-results" hidden>
+            <div class="minutes-export-bar">
+              <button id="minutes-export-minuta" type="button">Exportar Minuta (.docx)</button>
+              <button id="minutes-export-report" type="button">Exportar Reporte (.docx)</button>
+              <button id="minutes-reset" type="button">Nueva transcripci&oacute;n</button>
+            </div>
+
+            <section class="minutes-panel minutes-result-panel">
+              <h3>Minuta de Sesi&oacute;n</h3>
+              <div id="minutes-minuta-content" class="minutes-content"></div>
+            </section>
+
+            <section class="minutes-panel minutes-result-panel">
+              <h3>Reporte Ejecutivo</h3>
+              <div id="minutes-report-content" class="minutes-content"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="resources-workspace" class="resources-workspace" hidden>
+          <div class="resources-header">
+            <div>
+              <span class="module-badge">PMO Knowledge Base · Guía práctica</span>
+              <h2>Centro de ayuda para gestionar proyectos</h2>
+              <p>Respuestas, controles y artefactos aplicables al trabajo diario, alineados con PMBOK® Guide – Eighth Edition y las prácticas de la PMO.</p>
+            </div>
+            <label class="resource-search-label" for="resource-search">
+              Buscar en la guía
+              <input id="resource-search" type="search" placeholder="Ej.: riesgo, charter, cambio, cierre…" autocomplete="off">
+            </label>
+          </div>
+
+          <div class="pmbok-summary">
+            <article>
+              <span class="summary-number">6</span>
+              <div><strong>Principios para decidir</strong><p>Visión holística, valor, calidad, liderazgo responsable, sostenibilidad y equipos empoderados.</p></div>
+            </article>
+            <article>
+              <span class="summary-number">7</span>
+              <div><strong>Dominios para gestionar</strong><p>Gobernanza, alcance, cronograma, finanzas, interesados, recursos y riesgos.</p></div>
+            </article>
+            <article>
+              <span class="summary-number">1</span>
+              <div><strong>Regla de tailoring</strong><p>Aplicar solo el nivel de control que el riesgo, valor y complejidad del proyecto justifican.</p></div>
+            </article>
+          </div>
+
+          <nav class="resource-filters" aria-label="Categorías de la guía">
+            <button class="resource-filter active" data-resource-filter="all" type="button">Todo</button>
+            <button class="resource-filter" data-resource-filter="inicio" type="button">Inicio</button>
+            <button class="resource-filter" data-resource-filter="planificacion" type="button">Planificación</button>
+            <button class="resource-filter" data-resource-filter="ejecucion" type="button">Ejecución</button>
+            <button class="resource-filter" data-resource-filter="control" type="button">Control</button>
+            <button class="resource-filter" data-resource-filter="cierre" type="button">Cierre</button>
+          </nav>
+
+          <div id="resource-guide" class="resource-guide">
+            <details class="knowledge-card" data-category="inicio gobernanza charter valor sponsor" open>
+              <summary><span>01</span><div><strong>Inicio y Project Charter</strong><small>Alinear valor, autoridad y criterios de éxito</small></div></summary>
+              <div class="knowledge-body">
+                <section><h3>¿Para qué sirve?</h3><p>Autoriza el proyecto y crea un entendimiento común sobre el problema, el valor esperado y quién puede tomar decisiones.</p></section>
+                <section><h3>Contenido mínimo</h3><ul><li>Propósito y beneficio esperado.</li><li>Objetivos medibles y criterios de éxito.</li><li>Alcance inicial, exclusiones y entregables.</li><li>Sponsor, Project Manager y gobierno.</li><li>Hitos, presupuesto, supuestos, restricciones y riesgos de alto nivel.</li></ul></section>
+                <section><h3>Control PMO</h3><ul class="check-list"><li>Sponsor acepta su responsabilidad.</li><li>Existe una decisión explícita de inicio.</li><li>El éxito se expresa como resultado, no solo como entrega.</li></ul></section>
+                <p class="decision-rule"><strong>Escalar cuando:</strong> no existe sponsor, el beneficio no es medible o dos áreas disputan la autoridad.</p>
+              </div>
+            </details>
+
+            <details class="knowledge-card" data-category="planificacion alcance wbs edt requisitos calidad">
+              <summary><span>02</span><div><strong>Alcance, requisitos y EDT/WBS</strong><small>Definir qué se entrega y qué queda fuera</small></div></summary>
+              <div class="knowledge-body">
+                <section><h3>Resultado esperado</h3><p>Una línea base comprensible, trazable y aceptada que reduzca ambigüedad, retrabajo y crecimiento no controlado del alcance.</p></section>
+                <section><h3>Pasos recomendados</h3><ol><li>Levantar necesidades y criterios de aceptación.</li><li>Definir entregables y exclusiones.</li><li>Descomponer cada entregable hasta paquetes gestionables.</li><li>Asignar responsable, estimación y evidencia de término.</li><li>Validar la EDT con equipo, cliente y sponsor.</li></ol></section>
+                <section><h3>Indicadores útiles</h3><ul><li>Entregables aceptados / entregables planificados.</li><li>Requisitos sin trazabilidad.</li><li>Cambios de alcance aprobados y rechazados.</li><li>Retrabajo atribuible a requisitos ambiguos.</li></ul></section>
+                <p class="decision-rule"><strong>Regla práctica:</strong> un paquete de trabajo debe poder estimarse, asignarse, verificarse y cerrarse.</p>
+              </div>
+            </details>
+
+            <details class="knowledge-card" data-category="planificacion cronograma hitos dependencias ruta critica avance">
+              <summary><span>03</span><div><strong>Cronograma y avance</strong><small>Convertir alcance en una secuencia realista</small></div></summary>
+              <div class="knowledge-body">
+                <section><h3>Construcción</h3><ul><li>Partir desde la EDT o backlog aprobado.</li><li>Definir dependencias, hitos y responsables.</li><li>Estimar duración considerando disponibilidad real.</li><li>Identificar ruta crítica y reservas.</li><li>Aprobar y versionar la línea base.</li></ul></section>
+                <section><h3>Revisión semanal</h3><ul class="check-list"><li>Actualizar fechas reales y pronóstico.</li><li>Revisar hitos próximos y bloqueos.</li><li>Comparar avance real y esperado.</li><li>Registrar acciones con responsable y fecha.</li></ul></section>
+                <section><h3>Semáforo sugerido</h3><p><b class="status-green">Verde:</b> dentro de tolerancia. <b class="status-yellow">Ámbar:</b> tendencia desfavorable recuperable. <b class="status-red">Rojo:</b> hito o fecha comprometida requiere decisión.</p></section>
+              </div>
+            </details>
+
+            <details class="knowledge-card" data-category="control riesgos raid issues supuestos dependencias probabilidad impacto">
+              <summary><span>04</span><div><strong>Riesgos y registro RAID</strong><small>Gestionar incertidumbre antes de que sea un problema</small></div></summary>
+              <div class="knowledge-body">
+                <section><h3>Diferencias clave</h3><ul><li><strong>Riesgo:</strong> evento incierto que podría afectar objetivos.</li><li><strong>Issue:</strong> problema que ya ocurrió y requiere resolución.</li><li><strong>Supuesto:</strong> condición considerada verdadera para planificar.</li><li><strong>Dependencia:</strong> relación que condiciona el trabajo o una entrega.</li></ul></section>
+                <section><h3>Registro mínimo</h3><p>Causa, evento, impacto, probabilidad, severidad, respuesta, acción, responsable, vencimiento, riesgo residual y estado.</p></section>
+                <section><h3>Cadencia</h3><ul class="check-list"><li>Revisar riesgos altos semanalmente.</li><li>Convertir riesgos materializados en issues.</li><li>Verificar eficacia de respuestas.</li><li>Escalar exposición fuera de tolerancia.</li></ul></section>
+                <p class="decision-rule"><strong>Buena redacción:</strong> “Debido a [causa], podría ocurrir [evento], provocando [impacto]”.</p>
+              </div>
+            </details>
+
+            <details class="knowledge-card" data-category="ejecucion interesados comunicaciones raci equipo recursos">
+              <summary><span>05</span><div><strong>Stakeholders, comunicaciones y RACI</strong><small>Asegurar participación y decisiones oportunas</small></div></summary>
+              <div class="knowledge-body">
+                <section><h3>Plan de involucramiento</h3><p>Identificar influencia, impacto, expectativas, nivel actual y nivel deseado de compromiso. Adaptar mensajes y canales a cada audiencia.</p></section>
+                <section><h3>Plan de comunicaciones</h3><p>Definir audiencia, información, propósito, responsable, canal, frecuencia, confidencialidad y mecanismo de retroalimentación.</p></section>
+                <section><h3>Reglas RACI</h3><ul><li>Cada actividad debe tener al menos un <strong>R</strong>.</li><li>Debe existir un único <strong>A</strong> claramente identificable.</li><li>Evitar demasiados <strong>C</strong> que retrasen decisiones.</li><li>La matriz no reemplaza una conversación de roles.</li></ul></section>
+              </div>
+            </details>
+
+            <details class="knowledge-card" data-category="control cambios alcance cronograma finanzas presupuesto baseline aprobacion">
+              <summary><span>06</span><div><strong>Control integrado de cambios</strong><small>Proteger el valor y mantener trazabilidad</small></div></summary>
+              <div class="knowledge-body">
+                <section><h3>Flujo mínimo</h3><ol><li>Registrar solicitud y justificación.</li><li>Analizar impacto en alcance, cronograma, finanzas, interesados, recursos y riesgos.</li><li>Proponer opciones y recomendación.</li><li>Aprobar, rechazar o diferir por la autoridad definida.</li><li>Actualizar líneas base, artefactos y comunicaciones.</li></ol></section>
+                <section><h3>Evidencia</h3><p>ID, solicitante, fecha, motivo, análisis, decisión, aprobador, documentos afectados y fecha de implementación.</p></section>
+                <p class="decision-rule"><strong>No es un cambio aprobado</strong> hasta que exista una decisión registrada y las líneas base hayan sido actualizadas.</p>
+              </div>
+            </details>
+
+            <details class="knowledge-card" data-category="control seguimiento estado salud kpi reporte gobernanza finanzas valor">
+              <summary><span>07</span><div><strong>Seguimiento y reporte ejecutivo</strong><small>Informar decisiones, no solo actividades</small></div></summary>
+              <div class="knowledge-body">
+                <section><h3>Estado semanal recomendado</h3><ul><li>Salud general y explicación del cambio.</li><li>Hitos logrados, próximos hitos y pronóstico.</li><li>Avance real versus esperado.</li><li>Presupuesto, horas y variaciones.</li><li>Top riesgos, issues y dependencias.</li><li>Decisiones y apoyo requerido.</li></ul></section>
+                <section><h3>Preguntas ejecutivas</h3><ul class="check-list"><li>¿Seguimos entregando el valor esperado?</li><li>¿La fecha y el costo siguen siendo creíbles?</li><li>¿Qué decisión no puede tomar el equipo?</li><li>¿Qué cambió desde el último reporte?</li></ul></section>
+                <p class="decision-rule"><strong>Evitar:</strong> marcar verde por ausencia de información. La incertidumbre material debe hacerse visible.</p>
+              </div>
+            </details>
+
+            <details class="knowledge-card" data-category="cierre aceptacion handover lecciones beneficios contratos">
+              <summary><span>08</span><div><strong>Cierre y transición</strong><small>Aceptar entregables y convertir experiencia en conocimiento</small></div></summary>
+              <div class="knowledge-body">
+                <section><h3>Checklist de cierre</h3><ul class="check-list"><li>Aceptación formal de entregables.</li><li>Traspaso operativo, soporte y documentación.</li><li>Cierre financiero y contractual.</li><li>Riesgos residuales y pendientes transferidos.</li><li>Lecciones aprendidas registradas.</li><li>Responsable y fecha para medir beneficios.</li></ul></section>
+                <section><h3>Lección útil</h3><p>Debe describir contexto, señal observada, impacto, causa, acción aplicada y recomendación reutilizable. “Comunicar mejor” no es suficientemente accionable.</p></section>
+                <p class="decision-rule"><strong>Cerrar no significa olvidar:</strong> la realización de beneficios puede continuar después del proyecto.</p>
+              </div>
+            </details>
+          </div>
+
+          <section class="faq-section" aria-labelledby="faq-title">
+            <div class="faq-heading"><span>FAQ</span><h2 id="faq-title">Preguntas frecuentes de gestión</h2></div>
+            <div class="faq-grid">
+              <details class="faq-item" data-category="faq inicio"><summary>¿Cuándo necesito un Charter?</summary><p>Siempre que se requiera autorizar formalmente una iniciativa, asignar autoridad al PM y alinear sponsor, objetivos y límites. En proyectos pequeños puede ser breve, pero debe existir evidencia de autorización.</p></details>
+              <details class="faq-item" data-category="faq riesgos"><summary>¿Riesgo e issue son lo mismo?</summary><p>No. El riesgo todavía es incierto; el issue ya ocurrió. El primero requiere una respuesta preventiva y el segundo una acción correctiva con prioridad y responsable.</p></details>
+              <details class="faq-item" data-category="faq cambios"><summary>¿Todo ajuste requiere comité de cambios?</summary><p>No. La gobernanza debe definir umbrales. Cambios dentro de tolerancias delegadas puede aprobarlos el PM; impactos sobre líneas base o compromisos ejecutivos deben escalarse.</p></details>
+              <details class="faq-item" data-category="faq avance"><summary>¿Cómo medir avance sin depender de opiniones?</summary><p>Usa entregables o tareas con criterios de término verificables, ponderación conocida y una línea base temporal. Complementa porcentaje con hitos, variación y pronóstico.</p></details>
+              <details class="faq-item" data-category="faq estado"><summary>¿Cuándo un proyecto está en riesgo?</summary><p>Cuando una tendencia, exposición o dependencia amenaza compromisos, aunque todavía no exista incumplimiento. No es necesario esperar al retraso para cambiar el estado.</p></details>
+              <details class="faq-item" data-category="faq tailoring"><summary>¿Debo usar todos los artefactos?</summary><p>No. Selecciona controles según valor, complejidad, incertidumbre, regulación y tamaño del equipo. El tailoring debe ser consciente y dejar claras las reglas que sí aplican.</p></details>
+            </div>
+          </section>
+
+          <p id="resource-empty" class="resource-empty" hidden>No encontramos contenido para esa búsqueda.</p>
+          <footer class="resource-disclaimer">Contenido original de ayuda operativa. Referencia conceptual: PMBOK® Guide – Eighth Edition, publicada por PMI en noviembre de 2025. PMBOK y PMI son marcas de Project Management Institute. Esta guía no reemplaza el estándar oficial ni la metodología corporativa.</footer>
+        </section>
+
+        <section id="billing-workspace" class="billing-workspace" hidden>
+          <div class="billing-page-header">
+            <div>
+              <span class="module-badge billing-module-badge">Control financiero · PMO</span>
+              <h2>Plan de Facturación</h2>
+              <p>Revisión conjunta con cada Project Manager para confirmar proyectos facturables y el nivel de fiabilidad de la estimación.</p>
+            </div>
+            <div class="billing-page-totals">
+              <div class="billing-page-total billing-page-total-eligible">
+                <span>Apto para facturar</span>
+                <strong id="billing-page-total">USD 0</strong>
+                <small id="billing-page-count">0 proyectos facturables</small>
+              </div>
+              <div class="billing-page-total billing-page-total-invoiced">
+                <span>Facturado</span>
+                <strong id="billing-page-invoiced-total">USD 0</strong>
+                <small id="billing-page-invoiced-count">0 proyectos facturados</small>
+              </div>
+            </div>
+          </div>
+          <div class="billing-page-toolbar">
+            <label>Buscar proyecto o responsable<input id="billing-page-search" type="search" placeholder="Buscar…"></label>
+            <label>Mes de facturación<select id="billing-page-month"><option value="all">Todos los meses</option></select></label>
+            <label>Estado de revisión<select id="billing-page-status"><option value="all">Todos</option><option value="eligible">Facturables</option><option value="invoiced">Facturados</option><option value="pending">Pendientes</option></select></label>
+            <button id="billing-page-refresh" type="button">Actualizar</button>
+            <button id="billing-page-export" type="button">Descargar histórico</button>
+            <button id="billing-page-save" class="billing-save-all" type="button" disabled>Guardar cambios</button>
+            <span id="billing-autosave-status" class="billing-autosave-status">Sin cambios pendientes · Autoguardado cada 5 min</span>
+          </div>
+          <div class="billing-table-shell">
+            <table class="billing-table">
+              <thead><tr><th>PMO ID</th><th>Proyecto</th><th>Responsable</th><th>Días</th><th>Ventana</th><th>Estado</th><th>Avance</th><th>Mes</th><th>Presupuesto</th><th>Facturable</th><th>Facturado</th><th>Fecha facturado</th><th>Fiabilidad</th><th>Reseña breve</th><th>Fecha revisión</th></tr></thead>
+              <tbody id="billing-page-body"></tbody>
+            </table>
+            <div id="billing-page-loading" class="billing-page-message">Cargando plan de facturación…</div>
+            <div id="billing-page-empty" class="billing-page-message" hidden>No existen proyectos para los filtros seleccionados.</div>
+          </div>
+          <div id="billing-page-result" class="followup-result" hidden></div>
+          <p class="billing-page-note">Alcance: portafolio completo. El mes corresponde a la Fecha Planificada de Término. Facturable y Facturado son estados excluyentes; cada guardado manual o automático genera una revisión histórica inmutable con usuario, fechas, fiabilidad y reseña.</p>
+        </section>
+
+        <div id="followup-backdrop" class="followup-backdrop" hidden></div>
+        <aside id="followup-workspace" class="followup-workspace" aria-label="Seguimiento de proyecto" hidden>
+          <div class="followup-header">
+            <div>
+              <span class="module-badge">Control PMO · DEV</span>
+              <h2>Seguimiento de proyectos</h2>
+              <p>Registro auditable asociado al portafolio asignado.</p>
+            </div>
+            <button id="followup-close" class="drawer-close" type="button" aria-label="Cerrar formulario">×</button>
+          </div>
+          <form id="followup-form" class="followup-card">
+            <div class="followup-project-grid">
+              <label>
+                PMO ID
+                <input id="followup-pmo-id" type="text" maxlength="80" required>
+              </label>
+              <label>
+                Nombre del proyecto
+                <input id="followup-project-name" type="text" maxlength="240" required>
+              </label>
+            </div>
+            <label class="followup-check">
+              <input id="followup-reviewed" type="checkbox">
+              <span>Revisión realizada</span>
+            </label>
+            <label>
+              Apunte de seguimiento
+              <textarea id="followup-note" rows="7" maxlength="4000" required placeholder="Registra acuerdos, observaciones, decisiones y próximos pasos."></textarea>
+            </label>
+            <div class="followup-actions">
+              <small>Cada envío genera un evento nuevo; el historial no se sobrescribe.</small>
+              <button id="followup-save" type="submit">Guardar seguimiento</button>
+            </div>
+            <button id="followup-export" class="secondary-button" type="button">
+              Descargar planilla general
+            </button>
+            <div id="followup-result" class="followup-result" hidden></div>
+          </form>
+          <form id="billing-form" class="followup-card" hidden>
+            <div class="followup-project-grid">
+              <label>PMO ID<input id="billing-pmo-id" type="text" readonly required></label>
+              <label>Nombre del proyecto<input id="billing-project-name" type="text" readonly required></label>
+              <label>Presupuesto del proyecto<input id="billing-budget" type="number" min="0" step="0.01" readonly required></label>
+              <label>Fecha de revisión<input id="billing-review-date" type="date" readonly required></label>
+            </div>
+            <label class="followup-check billing-eligible-check">
+              <input id="billing-eligible" type="checkbox">
+              <span>Proyecto en condiciones de ser facturado</span>
+            </label>
+            <label>
+              Fiabilidad de la revisión
+              <select id="billing-reliability" required>
+                <option value="1">1 · Baja</option>
+                <option value="2" selected>2 · Media</option>
+                <option value="3">3 · Alta</option>
+              </select>
+            </label>
+            <label>
+              Observación
+              <textarea id="billing-note" rows="4" maxlength="1000" placeholder="Evidencia, condición pendiente o acuerdo con el PM."></textarea>
+            </label>
+            <div class="billing-summary">
+              <span>Total apto para facturar</span>
+              <strong id="billing-total">USD 0</strong>
+              <small id="billing-count">0 proyectos confirmados</small>
+            </div>
+            <div class="followup-actions">
+              <small>Se conservará la fecha, usuario y cada cambio para auditoría.</small>
+              <button id="billing-save" type="submit">Guardar revisión</button>
+            </div>
+            <div id="billing-result" class="followup-result" hidden></div>
+          </form>
+        </aside>
+
+        <div
           id="dashboard"
-          title="PMO Executive Dashboard V2"
-          allowfullscreen
+          role="region"
+          aria-label="PMO Executive Dashboard V2"
           hidden>
-        </iframe>
+        </div>
       </main>
     </div>
 
     <script src="config.js"></script>
+    <script src="https://unpkg.com/amazon-quicksight-embedding-sdk@2.11.3/dist/quicksight-embedding-js-sdk.min.js" integrity="sha384-1Azq7tKPC3n3q7lJnfgPHm6N47LNbaj5L4ikfTkznqtPxL50xfH64IejB1BCwgCW" crossorigin="anonymous"></script>
     <script src="app-v4.js"></script>
   </body>
 </html>

@@ -86,6 +86,41 @@
       "folder": "06 - Finanzas y capacidad",
       "type": "DECIMAL",
       "requiresTypeValidation": true
+    },
+    {
+      "source": "Pago Cliente",
+      "semanticName": "Pago Cliente",
+      "folder": "06 - Finanzas y capacidad",
+      "type": "DECIMAL",
+      "requiresTypeValidation": true
+    },
+    {
+      "source": "Fondos AWS",
+      "semanticName": "Fondos AWS",
+      "folder": "06 - Finanzas y capacidad",
+      "type": "DECIMAL",
+      "requiresTypeValidation": true
+    },
+    {
+      "source": "Incentivos",
+      "semanticName": "Incentivos",
+      "folder": "06 - Finanzas y capacidad",
+      "type": "DECIMAL",
+      "requiresTypeValidation": true
+    },
+    {
+      "source": "Creditos AWS",
+      "semanticName": "Creditos AWS",
+      "folder": "06 - Finanzas y capacidad",
+      "type": "DECIMAL",
+      "requiresTypeValidation": true
+    },
+    {
+      "source": "Inversion Morris",
+      "semanticName": "Inversion Morris",
+      "folder": "06 - Finanzas y capacidad",
+      "type": "DECIMAL",
+      "requiresTypeValidation": true
     }
   ],
   "calculatedFields": [

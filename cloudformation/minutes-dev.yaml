@@ -1,0 +1,174 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Serverless minutes and report generator for PMO-IP (DEV).
+
+Parameters:
+  PortalUrl:
+    Type: String
+  UserPoolId:
+    Type: String
+  UserPoolClientId:
+    Type: String
+  BedrockModelId:
+    Type: String
+    Default: amazon.nova-lite-v1:0
+
+Resources:
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /pmo-ip/dev/minutes-generator
+      RetentionInDays: 7
+      Tags:
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: dev
+
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-ip-dev-minutes-generator
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: generate-minutes
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "${LogGroup.Arn}:*"
+              - Effect: Allow
+                Action: bedrock:InvokeModel
+                Resource: "*"
+
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: pmo-ip-dev-minutes-generator
+      Runtime: python3.12
+      Handler: index.handler
+      MemorySize: 256
+      Timeout: 30
+      Role: !GetAtt FunctionRole.Arn
+      Environment:
+        Variables:
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          PORTAL_URL: !Ref PortalUrl
+          MAX_INPUT_CHARS: "60000"
+      Code:
+        ZipFile: |
+          import json,logging,os
+          from datetime import datetime,timezone
+          import boto3
+          L=logging.getLogger();L.setLevel(logging.INFO)
+          B=boto3.client("bedrock-runtime");M=os.environ["BEDROCK_MODEL_ID"]
+          PU=os.environ.get("PORTAL_URL","");MC=int(os.environ.get("MAX_INPUT_CHARS","60000"))
+          MP="Genera una MINUTA JSON de reunion PMO. Campos: session{projectName,dateTime,location,facilitator,attendees[],absentees[]},previousAgreements[{description,status,comments}],topicsDiscussed[{topic,summary}],newAgreements[{action,responsible,deadline}],nextSession{date,time,objective}. Si un dato falta usa 'No especificado'. Solo JSON.\n\nTRANSCRIPCION:\n"
+          RP="Genera un REPORTE EJECUTIVO JSON de reunion PMO. Campos: summary(3-5 parrafos),nextSteps[{action,responsible,deadline,priority:Alta|Media|Baja}],risks[{description,level:Alto|Medio|Bajo,mitigation}]. Solo JSON.\n\nTRANSCRIPCION:\n"
+          def cors():
+           return {"content-type":"application/json","cache-control":"no-store","access-control-allow-origin":PU or "*","access-control-allow-headers":"content-type,authorization","access-control-allow-methods":"POST,OPTIONS"}
+          def resp(s,b):return{"statusCode":s,"headers":cors(),"body":json.dumps(b,ensure_ascii=False)}
+          def pj(t):
+           t=t.strip()
+           if t.startswith("```"):
+            ls=t.split("\n");ls=ls[1:]if ls[0].startswith("```")else ls
+            e=next((i for i,l in enumerate(ls)if l.strip()=="```"),len(ls));t="\n".join(ls[:e])
+           return json.loads(t)
+          def gen(prompt,tx,mt=4000):
+           r=B.converse(modelId=M,messages=[{"role":"user","content":[{"text":prompt+tx[:MC]}]}],inferenceConfig={"maxTokens":mt,"temperature":0.1})
+           return pj(next(i["text"]for i in r["output"]["message"]["content"]if"text"in i))
+          def handler(event,context):
+           method=event.get("requestContext",{}).get("http",{}).get("method","")
+           if method=="OPTIONS":return resp(200,{})
+           try:body=json.loads(event.get("body")or"{}")
+           except:return resp(400,{"error":"JSON invalido."})
+           tx=str(body.get("transcription")or"").strip()
+           if not tx:return resp(400,{"error":"Campo transcription obligatorio."})
+           if len(tx)>MC:return resp(400,{"error":f"Excede {MC} caracteres."})
+           mode=str(body.get("mode")or"both").lower()
+           L.info(json.dumps({"event":"minutes_request","mode":mode,"chars":len(tx)}))
+           try:
+            result={"generatedAt":datetime.now(timezone.utc).isoformat()}
+            if mode in("minutes","both"):result["minutes"]=gen(MP,tx)
+            if mode in("report","both"):result["report"]=gen(RP,tx,3000)
+            return resp(200,result)
+           except Exception as e:
+            L.exception("fail");return resp(500,{"error":"Error al generar.","detail":str(e)[:200]})
+
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: pmo-ip-dev-minutes-api
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref PortalUrl
+        AllowMethods:
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - content-type
+          - authorization
+        MaxAge: 300
+
+  HttpApiAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref HttpApi
+      AuthorizerType: JWT
+      IdentitySource:
+        - $request.header.Authorization
+      Name: cognito-jwt
+      JwtConfiguration:
+        Audience:
+          - !Ref UserPoolClientId
+        Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}
+
+  GenerateIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt Function.Arn
+      PayloadFormatVersion: "2.0"
+
+  GenerateRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /generate
+      AuthorizationType: JWT
+      AuthorizerId: !Ref HttpApiAuthorizer
+      Target: !Sub integrations/${GenerateIntegration}
+
+  HttpApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: $default
+      AutoDeploy: true
+
+  ApiInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*
+
+Outputs:
+  MinutesApiUrl:
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+    Description: Base URL for the minutes generator API.
+  FunctionName:
+    Value: !Ref Function
+  LogGroupName:
+    Value: !Ref LogGroup
