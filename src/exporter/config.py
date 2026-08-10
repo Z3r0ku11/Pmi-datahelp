@@ -116,6 +116,11 @@ class Settings:
         "history/portfolio_health",
     )
 
+    portal_bucket: str = os.getenv(
+        "PORTAL_BUCKET",
+        "",
+    )
+
     output_directory: str = os.getenv(
         "OUTPUT_DIRECTORY",
         tempfile.gettempdir(),

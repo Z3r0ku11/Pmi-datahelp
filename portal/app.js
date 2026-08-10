@@ -206,6 +206,19 @@
   );
   asanaExtraction.title = `S3 VersionId: ${extractionVersion}`;
 
+  // Live sync status from sync_status.json
+  fetch("sync_status.json", { cache: "no-store" })
+    .then(r => r.ok ? r.json() : null)
+    .then(sync => {
+      if (!sync || !sync.last_sync_at) return;
+      const d = new Date(sync.last_sync_at);
+      const pad = n => String(n).padStart(2, "0");
+      const label = `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())} America/Santiago`;
+      asanaExtraction.textContent = `Extracción Asana: ${label}`;
+      asanaExtraction.title = `Proyectos: ${sync.projects || "?"} | Tareas: ${sync.tasks || "?"}`;
+    })
+    .catch(() => {});
+
   function currentView() {
     const requested = window.location.hash
       .replace(/^#/, "")

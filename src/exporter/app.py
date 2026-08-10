@@ -615,6 +615,36 @@ def lambda_handler(
             },
         )
 
+        # Publicar estado en bucket del portal (visible en frontend)
+        if settings.portal_bucket:
+            try:
+                import boto3 as _boto3
+                portal_s3 = _boto3.client(
+                    "s3", region_name=settings.aws_region
+                )
+                import json as _json
+                portal_s3.put_object(
+                    Bucket=settings.portal_bucket,
+                    Key="sync_status.json",
+                    Body=_json.dumps({
+                        "last_sync_at": sync_start,
+                        "projects": len(project_records),
+                        "tasks": len(tasks),
+                    }, ensure_ascii=False),
+                    ServerSideEncryption="AES256",
+                    ContentType="application/json",
+                    CacheControl="no-cache, no-store, must-revalidate",
+                )
+                logger.info(
+                    "sync_status.json publicado en portal | bucket=%s",
+                    settings.portal_bucket,
+                )
+            except Exception:
+                logger.warning(
+                    "No fue posible publicar sync_status.json en el portal",
+                    exc_info=True,
+                )
+
         logger.info(
             "Metadata de sincronización guardada | timestamp=%s",
             sync_start,

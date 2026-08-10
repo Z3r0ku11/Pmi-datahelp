@@ -279,6 +279,11 @@ Resources:
                   - s3:AbortMultipartUpload
                   - s3:PutObject
                 Resource: !Sub "${DataBucket.Arn}/*"
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:s3:::pmo-executive-portal-dev-${AWS::AccountId}-us-east-1/sync_status.json
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -325,6 +330,8 @@ Resources:
               Value: dev
             - Name: PMO_GIT_SHA
               Value: !Ref ContainerImageTag
+            - Name: PORTAL_BUCKET
+              Value: !Sub pmo-executive-portal-dev-${AWS::AccountId}-us-east-1
           LogConfiguration:
             LogDriver: awslogs
             Options:
