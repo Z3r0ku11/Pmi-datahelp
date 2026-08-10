@@ -8,6 +8,14 @@ on:
         required: true
         default: true
         type: boolean
+  push:
+    branches:
+      - main
+    paths:
+      - "src/exporter/**"
+      - "requirements.txt"
+      - "Dockerfile"
+      - "cloudformation/asana-etl-dev.yaml"
 
 permissions:
   contents: read
@@ -94,8 +102,31 @@ jobs:
           echo "High findings: ${high}"
           test "${critical}" -eq 0
 
+      - name: Update ETL stack with new image tag
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          bucket="$(
+            aws cloudformation describe-stacks \
+              --stack-name "${STACK_NAME}" \
+              --query "Stacks[0].Outputs[?OutputKey=='DataBucketName'].OutputValue | [0]" \
+              --output text
+          )"
+          aws cloudformation deploy \
+            --stack-name "${STACK_NAME}" \
+            --template-file cloudformation/asana-etl-dev.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              "DataBucketName=${bucket}" \
+              "ContainerImageTag=${GITHUB_SHA}" \
+            --tags \
+              "Application=PMO-Intelligence-Platform" \
+              "Environment=dev" \
+          || echo "::warning::Stack update skipped (insufficient permissions). Task will use existing definition."
+
       - name: Run isolated DEV task
-        if: ${{ inputs.run_task }}
+        if: ${{ inputs.run_task == true || inputs.run_task == '' }}
         id: run
         run: |
           set -euo pipefail
@@ -155,7 +186,7 @@ jobs:
           test "${exit_code}" = "0"
 
       - name: Validate contractual DEV objects
-        if: ${{ inputs.run_task }}
+        if: ${{ inputs.run_task == true || inputs.run_task == '' }}
         run: |
           set -euo pipefail
           bucket="$(

@@ -5,7 +5,7 @@ param(
     [string]$StackName = "pmo-ip-asana-etl-dev",
     [string]$DataBucketName = "",
     [string]$ImageTag = "",
-    [string]$ScheduleExpression = "cron(0 0/8 * * ? *)",
+    [string]$ScheduleExpression = "cron(0 0/2 * * ? *)",
     [switch]$InfrastructureOnly,
     [switch]$RunTask
 )

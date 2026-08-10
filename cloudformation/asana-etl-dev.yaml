@@ -20,8 +20,8 @@ Parameters:
     Default: "1207850474099261"
   ScheduleExpression:
     Type: String
-    Default: "cron(0 0/8 * * ? *)"
-    Description: Runs every 8 hours (00:00, 08:00, 16:00) in America/Santiago.
+    Default: "cron(0 0/2 * * ? *)"
+    Description: Runs every 2 hours in America/Santiago.
 
 Resources:
   DevVpc:
@@ -373,7 +373,7 @@ Resources:
     Type: AWS::Scheduler::Schedule
     Properties:
       Name: pmo-ip-dev-asana-etl
-      Description: PMO-IP DEV Asana ETL every 8 hours (00:00, 08:00, 16:00) America/Santiago.
+      Description: PMO-IP DEV Asana ETL every 2 hours America/Santiago.
       State: ENABLED
       ScheduleExpression: !Ref ScheduleExpression
       ScheduleExpressionTimezone: America/Santiago
@@ -482,7 +482,20 @@ Resources:
               - Effect: Allow
                 Action:
                   - cloudformation:DescribeStacks
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:DescribeStackEvents
                 Resource: !Ref AWS::StackId
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:GetTemplateSummary
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*
               - Effect: Allow
                 Action:
                   - ecs:DescribeTasks
