@@ -265,7 +265,7 @@ Resources:
               return "Crítico"
 
 
-          def normalize_risks(items):
+          def normalize_risks(items, max_count=10):
               normalized = []
               titles = set()
               for item in items:
@@ -307,17 +307,17 @@ Resources:
                   ),
                   reverse=True,
               )
-              normalized = normalized[:10]
+              normalized = normalized[:max_count]
               for index, risk in enumerate(normalized, 1):
                   risk["id"] = f"R-{index:03d}"
               return normalized
 
 
-          def analyze(source_text):
+          def analyze(source_text, max_count=10):
               prompt = f"""
           Actúa como Senior PMO Risk Manager. Analiza exclusivamente la evidencia
           documental incluida abajo. La propuesta PDF o PPTX es la fuente principal.
-          Genera como máximo 10 riesgos consolidados y accionables. No inventes
+          Genera como máximo {max_count} riesgos consolidados y accionables. No inventes
           riesgos para completar el límite. Prioriza exposición, evidencia,
           relevancia y capacidad de mitigación. Un riesgo por ausencia debe usar
           evidenceType='Brecha documental'. Devuelve SOLO JSON válido con esta
@@ -330,6 +330,7 @@ Resources:
           DOCUMENTOS:
           {source_text[:MAX_CHARS]}
           """
+              max_tokens = 3500 if max_count <= 10 else 5000 if max_count <= 15 else 7000
               response = BEDROCK.converse(
                   modelId=MODEL_ID,
                   messages=[{
@@ -337,14 +338,14 @@ Resources:
                       "content": [{"text": prompt}],
                   }],
                   inferenceConfig={
-                      "maxTokens": 3500,
+                      "maxTokens": max_tokens,
                       "temperature": 0.1,
                   },
               )
               content = response["output"]["message"]["content"]
               text = next(item["text"] for item in content if "text" in item)
               result = parse_json_response(text)
-              return normalize_risks(result.get("risks") or []), response.get("usage", {})
+              return normalize_risks(result.get("risks") or [], max_count), response.get("usage", {})
 
 
           def handler(event, context):
@@ -374,7 +375,8 @@ Resources:
                           f"\n[ARCHIVO {source['role'].upper()}: "
                           f"{source['displayName']}]\n{text}"
                       )
-                  risks, usage = analyze("\n".join(extracted))
+                  max_risk_count = event.get("maxRisks") or 10
+                  risks, usage = analyze("\n".join(extracted), max_risk_count)
                   if not risks:
                       raise ValueError("El modelo no generó riesgos con evidencia.")
                   result = {
@@ -382,7 +384,7 @@ Resources:
                       "status": "COMPLETED",
                       "updatedAt": datetime.now(timezone.utc).isoformat(),
                       "project": event.get("project") or {},
-                      "riskLimit": 10,
+                      "riskLimit": max_risk_count,
                       "risks": risks,
                       "usage": usage,
                   }
@@ -525,6 +527,7 @@ Resources:
                   "status": "AWAITING_UPLOAD",
                   "createdAt": datetime.now(timezone.utc).isoformat(),
                   "project": body.get("project") or {},
+                  "maxRisks": min(max(int(body.get("maxRisks") or 10), 5), 20),
                   "files": prepared,
               }
               S3.put_object(
@@ -562,6 +565,7 @@ Resources:
                       "prefix": f"risk-analysis/{subject}/{analysis_id}",
                       "files": status["files"],
                       "project": status.get("project") or {},
+                      "maxRisks": status.get("maxRisks") or 10,
                   }).encode("utf-8"),
               )
               return response(202, {"analysisId": analysis_id, "status": "QUEUED"})

@@ -1,0 +1,341 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: PMO Admin API for portal management (DEV).
+
+Parameters:
+  PortalUrl:
+    Type: String
+  UserPoolId:
+    Type: String
+  UserPoolClientId:
+    Type: String
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+  EtlClusterName:
+    Type: String
+    Default: pmo-ip-dev
+  EtlStackName:
+    Type: String
+    Default: pmo-ip-asana-etl-dev
+  PortalBucketName:
+    Type: String
+  ScheduleName:
+    Type: String
+    Default: pmo-ip-dev-asana-etl
+  LogGroupName:
+    Type: String
+    Default: /pmo-ip/dev/asana-exporter
+  AdminEmail:
+    Type: String
+    Default: dbarrios@morrisopazo.com
+
+Resources:
+  AdminLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /pmo-ip/${Environment}/admin-api
+      RetentionInDays: 7
+
+  AdminRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub pmo-ip-${Environment}-admin-api
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: admin-operations
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "${AdminLogGroup.Arn}:*"
+              - Effect: Allow
+                Action:
+                  - logs:GetLogEvents
+                  - logs:DescribeLogStreams
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
+              - Effect: Allow
+                Action:
+                  - ecs:RunTask
+                  - ecs:DescribeTasks
+                Resource: "*"
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !Sub >-
+                      arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${EtlClusterName}
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: ecs-tasks.amazonaws.com
+              - Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${EtlStackName}/*
+              - Effect: Allow
+                Action:
+                  - scheduler:GetSchedule
+                  - scheduler:UpdateSchedule
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/default/${ScheduleName}
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:iam::${AWS::AccountId}:role/pmo-ip-dev-asana-etl-scheduler
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${PortalBucketName}/sync_status.json
+                  - !Sub arn:${AWS::Partition}:s3:::${PortalBucketName}/theme.json
+              - Effect: Allow
+                Action:
+                  - cognito-idp:ListUsers
+                  - cognito-idp:AdminGetUser
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}
+
+  AdminFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub pmo-ip-${Environment}-admin-api
+      Runtime: python3.12
+      Handler: index.handler
+      MemorySize: 256
+      Timeout: 30
+      Role: !GetAtt AdminRole.Arn
+      Environment:
+        Variables:
+          PORTAL_URL: !Ref PortalUrl
+          ETL_CLUSTER: !Ref EtlClusterName
+          ETL_STACK: !Ref EtlStackName
+          PORTAL_BUCKET: !Ref PortalBucketName
+          SCHEDULE_NAME: !Ref ScheduleName
+          LOG_GROUP: !Ref LogGroupName
+          USER_POOL_ID: !Ref UserPoolId
+          ADMIN_EMAIL: !Ref AdminEmail
+      Code:
+        ZipFile: |
+          import json,os,logging,re
+          from datetime import datetime,timezone
+          import boto3
+          L=logging.getLogger();L.setLevel(logging.INFO)
+          ECS=boto3.client("ecs");CF=boto3.client("cloudformation")
+          S3=boto3.client("s3");LOGS=boto3.client("logs")
+          SCHED=boto3.client("scheduler");COGNITO=boto3.client("cognito-idp")
+          CLUSTER=os.environ["ETL_CLUSTER"];STACK=os.environ["ETL_STACK"]
+          BUCKET=os.environ["PORTAL_BUCKET"];SCHEDULE=os.environ["SCHEDULE_NAME"]
+          LOG_GROUP=os.environ["LOG_GROUP"];POOL=os.environ["USER_POOL_ID"]
+          PORTAL=os.environ.get("PORTAL_URL","");ADMIN=os.environ.get("ADMIN_EMAIL","")
+          def cors():
+           return{"content-type":"application/json","cache-control":"no-store","access-control-allow-origin":PORTAL or"*","access-control-allow-headers":"content-type,authorization","access-control-allow-methods":"GET,POST,PUT,OPTIONS"}
+          def resp(s,b):return{"statusCode":s,"headers":cors(),"body":json.dumps(b,ensure_ascii=False,default=str)}
+          def get_stack_output(key):
+           r=CF.describe_stacks(StackName=STACK)
+           for o in r["Stacks"][0].get("Outputs",[]):
+            if o["OutputKey"]==key:return o["OutputValue"]
+           return None
+          def do_sync():
+           td=get_stack_output("TaskDefinitionArn");sg=get_stack_output("SecurityGroupId")
+           sn=get_stack_output("SubnetIds")
+           r=ECS.run_task(cluster=CLUSTER,taskDefinition=td,launchType="FARGATE",networkConfiguration={"awsvpcConfiguration":{"subnets":sn.split(","),"securityGroups":[sg],"assignPublicIp":"ENABLED"}})
+           arn=r["tasks"][0]["taskArn"]
+           return{"taskArn":arn,"status":"LAUNCHED","launchedAt":datetime.now(timezone.utc).isoformat()}
+          def get_status():
+           try:
+            r=S3.get_object(Bucket=BUCKET,Key="sync_status.json")
+            return json.loads(r["Body"].read())
+           except:return{"status":"NO_DATA"}
+          def get_logs(limit=50):
+           streams=LOGS.describe_log_streams(logGroupName=LOG_GROUP,orderBy="LastEventTime",descending=True,limit=1)
+           if not streams.get("logStreams"):return{"lines":[]}
+           sn=streams["logStreams"][0]["logStreamName"]
+           events=LOGS.get_log_events(logGroupName=LOG_GROUP,logStreamName=sn,limit=limit)
+           return{"stream":sn,"lines":[e["message"]for e in events.get("events",[])]}
+          def get_schedule():
+           r=SCHED.get_schedule(Name=SCHEDULE)
+           return{"name":SCHEDULE,"expression":r["ScheduleExpression"],"state":r["State"],"timezone":r.get("ScheduleExpressionTimezone","UTC")}
+          def update_schedule(expr):
+           valid={"cron(0 0/2 * * ? *)","cron(0 0/4 * * ? *)","cron(0 0/8 * * ? *)","cron(0 0 * * ? *)"}
+           if expr not in valid:return resp(400,{"error":f"Expresion no permitida. Opciones: {list(valid)}"})
+           r=SCHED.get_schedule(Name=SCHEDULE)
+           SCHED.update_schedule(Name=SCHEDULE,ScheduleExpression=expr,ScheduleExpressionTimezone=r.get("ScheduleExpressionTimezone","America/Santiago"),FlexibleTimeWindow=r["FlexibleTimeWindow"],Target=r["Target"],State=r["State"])
+           return resp(200,{"expression":expr,"updated":True})
+          def handler(event,context):
+           method=event.get("requestContext",{}).get("http",{}).get("method","")
+           path=event.get("requestContext",{}).get("http",{}).get("path","")
+           if method=="OPTIONS":return resp(200,{})
+           # Auth check
+           claims=event.get("requestContext",{}).get("authorizer",{}).get("jwt",{}).get("claims",{})
+           email=claims.get("email","")
+           if ADMIN and email!=ADMIN:return resp(403,{"error":"Acceso denegado."})
+           if path=="/admin/sync"and method=="POST":
+            try:return resp(200,do_sync())
+            except Exception as e:L.exception("sync");return resp(500,{"error":str(e)[:200]})
+           elif path=="/admin/status"and method=="GET":
+            return resp(200,get_status())
+           elif path=="/admin/logs"and method=="GET":
+            try:return resp(200,get_logs())
+            except Exception as e:return resp(500,{"error":str(e)[:200]})
+           elif path=="/admin/schedule":
+            if method=="GET":
+             try:return resp(200,get_schedule())
+             except Exception as e:return resp(500,{"error":str(e)[:200]})
+            elif method=="PUT":
+             try:
+              body=json.loads(event.get("body")or"{}")
+              return update_schedule(body.get("expression",""))
+             except Exception as e:L.exception("schedule");return resp(500,{"error":str(e)[:200]})
+           elif path=="/admin/theme":
+            if method=="GET":
+             try:
+              r=S3.get_object(Bucket=BUCKET,Key="theme.json")
+              return resp(200,json.loads(r["Body"].read()))
+             except:return resp(200,{})
+            elif method=="PUT":
+             try:
+              body=json.loads(event.get("body")or"{}")
+              S3.put_object(Bucket=BUCKET,Key="theme.json",Body=json.dumps(body,ensure_ascii=False),ServerSideEncryption="AES256",ContentType="application/json",CacheControl="no-cache, no-store, must-revalidate")
+              return resp(200,{"saved":True})
+             except Exception as e:L.exception("theme");return resp(500,{"error":str(e)[:200]})
+           return resp(404,{"error":"Not found"})
+
+  AdminApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub pmo-ip-${Environment}-admin-api
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref PortalUrl
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - OPTIONS
+        AllowHeaders:
+          - content-type
+          - authorization
+        MaxAge: 300
+
+  AdminAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref AdminApi
+      AuthorizerType: JWT
+      IdentitySource:
+        - $request.header.Authorization
+      Name: cognito-admin
+      JwtConfiguration:
+        Audience:
+          - !Ref UserPoolClientId
+        Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}
+
+  AdminIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref AdminApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt AdminFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  SyncRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AdminApi
+      RouteKey: POST /admin/sync
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AdminAuthorizer
+      Target: !Sub integrations/${AdminIntegration}
+
+  StatusRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AdminApi
+      RouteKey: GET /admin/status
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AdminAuthorizer
+      Target: !Sub integrations/${AdminIntegration}
+
+  LogsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AdminApi
+      RouteKey: GET /admin/logs
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AdminAuthorizer
+      Target: !Sub integrations/${AdminIntegration}
+
+  ScheduleGetRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AdminApi
+      RouteKey: GET /admin/schedule
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AdminAuthorizer
+      Target: !Sub integrations/${AdminIntegration}
+
+  SchedulePutRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AdminApi
+      RouteKey: PUT /admin/schedule
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AdminAuthorizer
+      Target: !Sub integrations/${AdminIntegration}
+
+  ThemeGetRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AdminApi
+      RouteKey: GET /admin/theme
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AdminAuthorizer
+      Target: !Sub integrations/${AdminIntegration}
+
+  ThemePutRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AdminApi
+      RouteKey: PUT /admin/theme
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AdminAuthorizer
+      Target: !Sub integrations/${AdminIntegration}
+
+  AdminApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref AdminApi
+      StageName: $default
+      AutoDeploy: true
+
+  AdminInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AdminFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AdminApi}/*/*
+
+Outputs:
+  AdminApiUrl:
+    Value: !Sub https://${AdminApi}.execute-api.${AWS::Region}.amazonaws.com
+  AdminFunctionName:
+    Value: !Ref AdminFunction

@@ -62,7 +62,7 @@ Resources:
               frame-src https://*.quicksight.aws.amazon.com;
               img-src 'self' data:;
               style-src 'self' 'unsafe-inline';
-              script-src 'self';
+              script-src 'self' https://unpkg.com;
               connect-src 'self' https:;
               object-src 'none';
               base-uri 'self';

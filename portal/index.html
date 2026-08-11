@@ -68,6 +68,12 @@
             <span class="nav-icon">▧</span>
             <span>Recursos PMO</span>
           </button>
+
+          <p class="nav-heading nav-heading-spaced">Administraci&oacute;n</p>
+          <button class="nav-item" data-view="admin" type="button">
+            <span class="nav-icon">⚙</span>
+            <span>Panel Admin</span>
+          </button>
         </nav>
         <footer class="sidebar-footer">
           <strong>PMO Office</strong>
@@ -129,7 +135,14 @@
               <label>NDA opcional<input id="risk-nda-file" type="file" accept=".pdf,.pptx"></label>
             </div>
             <div class="risk-upload-actions">
-              <small>Máximo 3 archivos · 20 MB por archivo · solo PDF digital o PPTX · sin OCR</small>
+              <small>M&aacute;ximo 3 archivos &middot; 20 MB por archivo &middot; solo PDF digital o PPTX &middot; sin OCR</small>
+              <label>Cantidad m&aacute;xima de riesgos
+                <select id="risk-max-count">
+                  <option value="10">10 riesgos</option>
+                  <option value="15">15 riesgos</option>
+                  <option value="20">20 riesgos</option>
+                </select>
+              </label>
               <button id="risk-generate" type="button">Generar Matriz de Riesgos</button>
             </div>
             <div id="risk-analysis-progress" class="risk-analysis-progress" hidden>
@@ -139,6 +152,9 @@
           </section>
 
           <div id="risk-results" hidden>
+          <div class="risk-export-bar">
+            <button id="risk-export-excel" type="button">Exportar a Excel (.csv)</button>
+          </div>
           <div class="risk-kpis" aria-label="Resumen de riesgos">
             <article><span>Total</span><strong id="risk-total">0</strong></article>
             <article class="risk-kpi-critical"><span>Críticos</span><strong id="risk-critical">0</strong></article>
@@ -388,6 +404,175 @@
             </details>
           </div>
 
+          <section class="checklist-section" aria-labelledby="checklist-title">
+            <div class="faq-heading"><span>Framework v3</span><h2 id="checklist-title">Checklist Documental por Fase</h2></div>
+            <p class="checklist-intro">Documentos m&iacute;nimos requeridos en cada fase del proyecto seg&uacute;n el Framework Corporativo de Gesti&oacute;n de Proyectos v3 &mdash; Morris &amp; Opazo.</p>
+
+            <div class="checklist-grid">
+
+              <details class="checklist-phase" data-category="inicio intake">
+                <summary><span class="phase-number">01</span><div><strong>PMO Intake</strong><small>Recepci&oacute;n y validaci&oacute;n inicial</small></div></summary>
+                <div class="checklist-body">
+                  <ul class="check-list">
+                    <li>SOW / Contrato firmado</li>
+                    <li>NDA (si aplica)</li>
+                    <li>Alcance validado (entregables, exclusiones)</li>
+                    <li>Presupuesto y horas estimadas</li>
+                    <li>Arquitectura preliminar</li>
+                    <li>Clasificaci&oacute;n del proyecto (Assessment, POC, Implementaci&oacute;n, Migraci&oacute;n)</li>
+                    <li>Definici&oacute;n de criticidad</li>
+                    <li>PM asignado</li>
+                    <li>Cloud Team predefinido</li>
+                    <li>Proyecto creado en Asana (estructura base)</li>
+                    <li>Proyecto creado en Clockify</li>
+                  </ul>
+                  <div class="checklist-example">
+                    <strong>Ejemplo:</strong> Proyecto "Migraci&oacute;n Datacenter AWS - ClienteX". SOW aprobado por USD 85K, 1.200 HH estimadas, clasificaci&oacute;n: Migraci&oacute;n, criticidad Alta. PM: Carlo Sorrel. Cloud Team: 2 Arquitectos + 3 Ingenieros.
+                  </div>
+                </div>
+              </details>
+
+              <details class="checklist-phase" data-category="inicio handover">
+                <summary><span class="phase-number">02</span><div><strong>Project Handover</strong><small>Transferencia comercial &rarr; operaci&oacute;n</small></div></summary>
+                <div class="checklist-body">
+                  <ul class="check-list">
+                    <li>Acta de transferencia interna (Comercial &rarr; PM)</li>
+                    <li>Presentaci&oacute;n de contexto del proyecto</li>
+                    <li>Revisi&oacute;n de alcance y entregables con PM</li>
+                    <li>Riesgos iniciales identificados</li>
+                    <li>Dependencias cliente documentadas</li>
+                    <li>Arquitectura propuesta revisada</li>
+                    <li>HH preliminares validadas</li>
+                    <li>Stakeholders identificados</li>
+                    <li>Cloud Team confirmado</li>
+                    <li>Sesi&oacute;n Pre-Kickoff interna realizada</li>
+                  </ul>
+                  <div class="checklist-example">
+                    <strong>Ejemplo:</strong> Sesi&oacute;n de handover de 1 hora donde PMO presenta al PM el SOW, arquitectura, riesgos (dependencia VPN cliente) y confirma equipo. Se documenta en acta con compromisos.
+                  </div>
+                </div>
+              </details>
+
+              <details class="checklist-phase" data-category="planificacion">
+                <summary><span class="phase-number">03</span><div><strong>Planificaci&oacute;n</strong><small>Construcci&oacute;n del proyecto</small></div></summary>
+                <div class="checklist-body">
+                  <ul class="check-list">
+                    <li>WBS / EDT construido</li>
+                    <li>Cronograma con ruta cr&iacute;tica</li>
+                    <li>Hitos contractuales definidos</li>
+                    <li>Estimaci&oacute;n de HH por paquete</li>
+                    <li>Dependencias identificadas</li>
+                    <li>Riesgos iniciales registrados</li>
+                    <li>Plan de comunicaci&oacute;n</li>
+                    <li>Matriz de escalamiento</li>
+                    <li>Baseline (l&iacute;nea base) aprobada</li>
+                    <li>Metodolog&iacute;a definida (&aacute;gil o tradicional)</li>
+                  </ul>
+                  <div class="checklist-example">
+                    <strong>Ejemplo:</strong> WBS con 5 fases, 47 tareas, ruta cr&iacute;tica de 12 semanas. Hitos: Kickoff (S1), Entrega Assessment (S4), Migraci&oacute;n Piloto (S8), Go-Live (S12). Baseline aprobada por L&iacute;der PM.
+                  </div>
+                </div>
+              </details>
+
+              <details class="checklist-phase" data-category="planificacion ejecucion">
+                <summary><span class="phase-number">04</span><div><strong>Configuraci&oacute;n Operativa</strong><small>Setup en Asana y herramientas</small></div></summary>
+                <div class="checklist-body">
+                  <ul class="check-list">
+                    <li>Proyecto configurado en Asana (fases, tareas, subtareas)</li>
+                    <li>Responsables asignados en cada tarea</li>
+                    <li>Fechas de inicio y t&eacute;rmino definidas</li>
+                    <li>Dependencias configuradas</li>
+                    <li>HH estimadas registradas por tarea</li>
+                    <li>Hitos creados como Milestones</li>
+                    <li>Timeline activado</li>
+                    <li>Dashboard operativo configurado</li>
+                    <li>Clockify configurado con tareas</li>
+                  </ul>
+                  <div class="checklist-example">
+                    <strong>Ejemplo:</strong> Proyecto en Asana con secciones: Inicio, Planificaci&oacute;n, Ejecuci&oacute;n, M&amp;C, Cierre. 47 tareas con fechas, 5 milestones, timeline visible, dashboard con % avance y tareas vencidas.
+                  </div>
+                </div>
+              </details>
+
+              <details class="checklist-phase" data-category="ejecucion">
+                <summary><span class="phase-number">05</span><div><strong>Ejecuci&oacute;n</strong><small>Implementaci&oacute;n activa</small></div></summary>
+                <div class="checklist-body">
+                  <ul class="check-list">
+                    <li>Acta de Kickoff con cliente</li>
+                    <li>Minutas de reuniones de seguimiento</li>
+                    <li>Registro de horas en Clockify (semanal)</li>
+                    <li>Tareas actualizadas en Asana</li>
+                    <li>Evidencias de avance</li>
+                    <li>Risk Register actualizado</li>
+                    <li>Gesti&oacute;n de bloqueos documentada</li>
+                    <li>Comunicaciones formales con cliente</li>
+                  </ul>
+                  <div class="checklist-example">
+                    <strong>Ejemplo:</strong> Semana 4: 3 tareas completadas, 1 bloqueada (acceso VPN pendiente). Minuta semanal enviada. 32 HH registradas en Clockify. Riesgo "Retraso accesos" escalado a L&iacute;der PM.
+                  </div>
+                </div>
+              </details>
+
+              <details class="checklist-phase" data-category="control">
+                <summary><span class="phase-number">06</span><div><strong>Monitoreo y Control</strong><small>Seguimiento continuo</small></div></summary>
+                <div class="checklist-body">
+                  <ul class="check-list">
+                    <li>Reporte semanal de estado</li>
+                    <li>Control de hitos (cumplido / en riesgo / atrasado)</li>
+                    <li>Comparativo HH estimadas vs reales</li>
+                    <li>Gesti&oacute;n de cambios (CPP si aplica)</li>
+                    <li>Actualizaci&oacute;n de riesgos</li>
+                    <li>Dashboard actualizado en Asana</li>
+                    <li>Escalamiento documentado (si aplica)</li>
+                    <li>Validaci&oacute;n de avance por L&iacute;der PM</li>
+                  </ul>
+                  <div class="checklist-example">
+                    <strong>Ejemplo:</strong> Reporte S6: Avance 48% (planificado 50%), 580 HH consumidas de 1.200, 2 riesgos activos (medio), 0 CPP. Sem&aacute;foro: Amarillo (tendencia recuperable).
+                  </div>
+                </div>
+              </details>
+
+              <details class="checklist-phase" data-category="control cierre">
+                <summary><span class="phase-number">07</span><div><strong>Validaci&oacute;n de Entregables</strong><small>Aprobaci&oacute;n cliente</small></div></summary>
+                <div class="checklist-body">
+                  <ul class="check-list">
+                    <li>Entregables revisados t&eacute;cnicamente</li>
+                    <li>Criterios de aceptaci&oacute;n verificados</li>
+                    <li>Validaci&oacute;n funcional con cliente</li>
+                    <li>Acta de aceptaci&oacute;n firmada</li>
+                    <li>Evidencias de cumplimiento</li>
+                  </ul>
+                  <div class="checklist-example">
+                    <strong>Ejemplo:</strong> Entregable "Migraci&oacute;n 15 servidores" validado por cliente. Acta de aceptaci&oacute;n firmada el 15/03/2026. Evidencia: screenshot consola AWS + informe de validaci&oacute;n.
+                  </div>
+                </div>
+              </details>
+
+              <details class="checklist-phase" data-category="cierre">
+                <summary><span class="phase-number">08</span><div><strong>Cierre del Proyecto</strong><small>Formalizaci&oacute;n y transferencia</small></div></summary>
+                <div class="checklist-body">
+                  <ul class="check-list">
+                    <li>IDD (Ingenier&iacute;a de Detalle) entregado</li>
+                    <li>Arquitectura implementada documentada</li>
+                    <li>Manuales operativos</li>
+                    <li>Presentaci&oacute;n ejecutiva de cierre (PPT)</li>
+                    <li>Lecciones aprendidas registradas</li>
+                    <li>Transferencia operacional completada</li>
+                    <li>HH finales validadas</li>
+                    <li>Hitos facturables confirmados</li>
+                    <li>Facturaci&oacute;n coordinada</li>
+                    <li>Proyecto cerrado en Asana y Clockify</li>
+                    <li>Portafolio PMO actualizado</li>
+                  </ul>
+                  <div class="checklist-example">
+                    <strong>Ejemplo:</strong> Cierre proyecto "Migraci&oacute;n ClienteX": IDD 45 p&aacute;gs entregado, PPT ejecutiva presentada, 1.180 HH consumidas (98% del presupuesto), 3 lecciones aprendidas documentadas, transferencia a operaciones completada, factura final emitida.
+                  </div>
+                </div>
+              </details>
+
+            </div>
+          </section>
+
           <section class="faq-section" aria-labelledby="faq-title">
             <div class="faq-heading"><span>FAQ</span><h2 id="faq-title">Preguntas frecuentes de gestión</h2></div>
             <div class="faq-grid">
@@ -443,6 +628,97 @@
           </div>
           <div id="billing-page-result" class="followup-result" hidden></div>
           <p class="billing-page-note">Alcance: portafolio completo. El mes corresponde a la Fecha Planificada de Término. Facturable y Facturado son estados excluyentes; cada guardado manual o automático genera una revisión histórica inmutable con usuario, fechas, fiabilidad y reseña.</p>
+        </section>
+
+        <section id="admin-workspace" class="admin-workspace" hidden>
+          <div class="admin-header">
+            <div>
+              <span class="module-badge">Administraci&oacute;n</span>
+              <h2>Panel de Control</h2>
+              <p>Gestiona la sincronizaci&oacute;n, schedule y configuraci&oacute;n del portal.</p>
+            </div>
+          </div>
+
+          <div class="admin-grid">
+            <section class="admin-card">
+              <h3>Estado de Sincronizaci&oacute;n</h3>
+              <div id="admin-status-content" class="admin-status-content">
+                <p>Cargando...</p>
+              </div>
+              <button id="admin-refresh-status" type="button" class="admin-btn">Actualizar estado</button>
+            </section>
+
+            <section class="admin-card">
+              <h3>Sincronizaci&oacute;n Manual</h3>
+              <p>Dispara una extracci&oacute;n completa de Asana ahora.</p>
+              <button id="admin-force-sync" type="button" class="admin-btn admin-btn-primary">Forzar Sincronizaci&oacute;n</button>
+              <div id="admin-sync-result" class="admin-result" hidden></div>
+            </section>
+
+            <section class="admin-card">
+              <h3>Schedule Autom&aacute;tico</h3>
+              <div id="admin-schedule-content">
+                <p>Cargando...</p>
+              </div>
+              <label>Frecuencia
+                <select id="admin-schedule-select">
+                  <option value="cron(0 0/2 * * ? *)">Cada 2 horas</option>
+                  <option value="cron(0 0/4 * * ? *)">Cada 4 horas</option>
+                  <option value="cron(0 0/8 * * ? *)">Cada 8 horas</option>
+                  <option value="cron(0 0 * * ? *)">Diario (00:00)</option>
+                </select>
+              </label>
+              <button id="admin-update-schedule" type="button" class="admin-btn">Guardar Schedule</button>
+            </section>
+
+            <section class="admin-card admin-card-wide">
+              <h3>Logs de Ejecuci&oacute;n</h3>
+              <button id="admin-load-logs" type="button" class="admin-btn">Cargar &uacute;ltimos logs</button>
+              <pre id="admin-logs-content" class="admin-logs"></pre>
+            </section>
+
+            <section class="admin-card admin-card-wide">
+              <h3>Personalizaci&oacute;n Visual</h3>
+              <p>Modifica los colores, textos y apariencia del portal.</p>
+              <div class="admin-theme-grid">
+                <label>Color principal (accent)
+                  <input id="theme-accent" type="color" value="#4f8cff">
+                </label>
+                <label>Color de fondo
+                  <input id="theme-bg" type="color" value="#12121a">
+                </label>
+                <label>Color superficie (cards)
+                  <input id="theme-surface" type="color" value="#1e1e2e">
+                </label>
+                <label>Color bordes
+                  <input id="theme-border" type="color" value="#2a2a3e">
+                </label>
+                <label>Color texto principal
+                  <input id="theme-text" type="color" value="#e0e0e0">
+                </label>
+                <label>Color header
+                  <input id="theme-header-bg" type="color" value="#0d0d14">
+                </label>
+                <label>T&iacute;tulo del portal
+                  <input id="theme-title" type="text" value="PMO Executive Dashboard" maxlength="60">
+                </label>
+                <label>Subt&iacute;tulo
+                  <input id="theme-subtitle" type="text" value="Driving Value. Delivering Results." maxlength="100">
+                </label>
+              </div>
+              <div class="admin-theme-preview" id="admin-theme-preview">
+                <div class="theme-preview-header">Vista previa</div>
+                <div class="theme-preview-body">
+                  <div class="theme-preview-card"></div>
+                  <div class="theme-preview-card"></div>
+                </div>
+              </div>
+              <div class="admin-theme-actions">
+                <button id="admin-theme-save" type="button" class="admin-btn admin-btn-primary">Guardar tema</button>
+                <button id="admin-theme-reset" type="button" class="admin-btn">Restaurar por defecto</button>
+              </div>
+            </section>
+          </div>
         </section>
 
         <div id="followup-backdrop" class="followup-backdrop" hidden></div>

@@ -20,6 +20,7 @@
   const resourcesWorkspace = document.getElementById("resources-workspace");
   const billingWorkspace = document.getElementById("billing-workspace");
   const minutesWorkspace = document.getElementById("minutes-workspace");
+  const adminWorkspace = document.getElementById("admin-workspace");
   const billingPageBody = document.getElementById("billing-page-body");
   const billingPageSearch = document.getElementById("billing-page-search");
   const billingPageMonth = document.getElementById("billing-page-month");
@@ -34,7 +35,7 @@
     ...document.querySelectorAll("[data-resource-filter]")
   ];
   const resourceEntries = [
-    ...document.querySelectorAll(".knowledge-card, .faq-item")
+    ...document.querySelectorAll(".knowledge-card, .faq-item, .checklist-phase")
   ];
   const resourceEmpty = document.getElementById("resource-empty");
   const followupWorkspace = document.getElementById("followup-workspace");
@@ -123,6 +124,11 @@
       title: "Minutas y Reportes",
       subtitle: "Document Intelligence | Minuta | Reporte Ejecutivo",
       minutesWorkspace: true
+    },
+    admin: {
+      title: "Panel de Control",
+      subtitle: "Administración | Sincronización | Configuración",
+      adminWorkspace: true
     },
     "billing-plan": {
       title: "Plan de Facturación",
@@ -328,6 +334,7 @@
       resourcesWorkspace.hidden = !module.resourcesWorkspace;
       billingWorkspace.hidden = !module.billingWorkspace;
       minutesWorkspace.hidden = !module.minutesWorkspace;
+      adminWorkspace.hidden = !module.adminWorkspace;
       if (!module.followupWorkspace) {
         closeFollowup();
       }
@@ -337,7 +344,8 @@
         module.followupWorkspace ||
         module.resourcesWorkspace ||
         module.billingWorkspace ||
-        module.minutesWorkspace
+        module.minutesWorkspace ||
+        module.adminWorkspace
       );
       if (module.riskWorkspace) {
         renderRiskMatrix();
@@ -365,6 +373,10 @@
       if (module.minutesWorkspace) {
         return;
       }
+      if (module.adminWorkspace) {
+        loadAdminPanel();
+        return;
+      }
       moduleStatus.textContent = module.status || "Módulo planificado";
       moduleTitle.textContent = module.title;
       moduleDescription.textContent = module.description;
@@ -378,6 +390,7 @@
     resourcesWorkspace.hidden = true;
     billingWorkspace.hidden = true;
     minutesWorkspace.hidden = true;
+    adminWorkspace.hidden = true;
     placeholder.hidden = true;
     if (fatalError) {
       loading.hidden = true;
@@ -1067,6 +1080,7 @@
   async function generateRiskAnalysis() {
     const button = document.getElementById("risk-generate");
     const projectName = document.getElementById("risk-project-name").value.trim();
+    const maxCount = parseInt(document.getElementById("risk-max-count")?.value || "10", 10);
     const proposal = document.getElementById("risk-proposal-file").files[0];
     const sow = document.getElementById("risk-sow-file").files[0];
     const nda = document.getElementById("risk-nda-file").files[0];
@@ -1083,6 +1097,7 @@
         method: "POST",
         body: JSON.stringify({
           project: { name: projectName || "Proyecto sin nombre" },
+          maxRisks: maxCount,
           files: files.map(({ file, role }) => ({
             name: file.name,
             role,
@@ -1120,6 +1135,30 @@
     "click",
     generateRiskAnalysis
   );
+
+  // Risk export to Excel (CSV)
+  const riskExportExcelBtn = document.getElementById("risk-export-excel");
+  if (riskExportExcelBtn) {
+    riskExportExcelBtn.addEventListener("click", () => {
+      if (!riskRecords.length) return;
+      const headers = ["ID","Riesgo","Categoría","Probabilidad","Impacto","P×I","Nivel","Causa","Consecuencia","Mitigación","Responsable","Respuesta","Evidencia","Confianza","Estado"];
+      const rows = riskRecords.map(r => [
+        r.id, r.title, r.category, r.probability, r.impact, r.score,
+        r.score >= 15 ? "Crítico" : r.score >= 10 ? "Alto" : r.score >= 5 ? "Medio" : "Bajo",
+        r.cause, r.consequence, r.mitigation, r.owner, r.response, r.evidence, r.confidence, r.status
+      ]);
+      const csvContent = [headers, ...rows].map(row =>
+        row.map(cell => `"${String(cell || "").replace(/"/g, '""')}"`).join(",")
+      ).join("\n");
+      const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Matriz_Riesgos_${(riskProject.name || "Proyecto").replace(/[^a-zA-Z0-9]/g, "_")}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
 
   function planningDate(value) {
     const [year, month, day] = String(value || "").split("-").map(Number);
@@ -2323,6 +2362,248 @@
   }
 
   // ─── End Minutes ────────────────────────────────────────────────
+
+  // ─── Admin Panel ────────────────────────────────────────────────
+  const adminStatusContent = document.getElementById("admin-status-content");
+  const adminSyncResult = document.getElementById("admin-sync-result");
+  const adminScheduleContent = document.getElementById("admin-schedule-content");
+  const adminScheduleSelect = document.getElementById("admin-schedule-select");
+  const adminLogsContent = document.getElementById("admin-logs-content");
+
+  async function adminFetch(path, options = {}) {
+    const apiUrl = config.adminApiUrl;
+    if (!apiUrl) throw new Error("Admin API no configurada.");
+    const token = getToken();
+    const resp = await fetch(`${apiUrl}${path}`, {
+      ...options,
+      headers: {
+        "content-type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `Error ${resp.status}`);
+    }
+    return resp.json();
+  }
+
+  async function loadAdminStatus() {
+    try {
+      const status = await adminFetch("/admin/status");
+      if (status.last_sync_at) {
+        const d = new Date(status.last_sync_at);
+        const pad = n => String(n).padStart(2, "0");
+        const label = `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        adminStatusContent.innerHTML = `
+          <p><strong>Última sincronización:</strong> ${label}</p>
+          <p><strong>Proyectos:</strong> ${status.projects || "?"}</p>
+          <p><strong>Tareas:</strong> ${status.tasks || "?"}</p>
+        `;
+      } else {
+        adminStatusContent.innerHTML = `<p>Sin datos de sincronización.</p>`;
+      }
+    } catch (e) {
+      adminStatusContent.innerHTML = `<p class="admin-error">${e.message}</p>`;
+    }
+  }
+
+  async function loadAdminSchedule() {
+    try {
+      const sched = await adminFetch("/admin/schedule");
+      adminScheduleContent.innerHTML = `
+        <p><strong>Expresión actual:</strong> ${sched.expression}</p>
+        <p><strong>Estado:</strong> ${sched.state}</p>
+        <p><strong>Zona horaria:</strong> ${sched.timezone}</p>
+      `;
+      if (adminScheduleSelect) {
+        adminScheduleSelect.value = sched.expression;
+      }
+    } catch (e) {
+      adminScheduleContent.innerHTML = `<p class="admin-error">${e.message}</p>`;
+    }
+  }
+
+  function loadAdminPanel() {
+    loadAdminStatus();
+    loadAdminSchedule();
+  }
+
+  const adminRefreshBtn = document.getElementById("admin-refresh-status");
+  if (adminRefreshBtn) {
+    adminRefreshBtn.addEventListener("click", loadAdminStatus);
+  }
+
+  const adminForceSyncBtn = document.getElementById("admin-force-sync");
+  if (adminForceSyncBtn) {
+    adminForceSyncBtn.addEventListener("click", async () => {
+      adminForceSyncBtn.disabled = true;
+      adminSyncResult.hidden = false;
+      adminSyncResult.textContent = "Lanzando sincronización...";
+      try {
+        const result = await adminFetch("/admin/sync", { method: "POST" });
+        adminSyncResult.innerHTML = `<p class="admin-success">Tarea lanzada: ${result.taskArn?.split("/").pop() || "OK"}</p><p>Hora: ${result.launchedAt || ""}</p>`;
+      } catch (e) {
+        adminSyncResult.innerHTML = `<p class="admin-error">Error: ${e.message}</p>`;
+      } finally {
+        adminForceSyncBtn.disabled = false;
+      }
+    });
+  }
+
+  const adminUpdateScheduleBtn = document.getElementById("admin-update-schedule");
+  if (adminUpdateScheduleBtn) {
+    adminUpdateScheduleBtn.addEventListener("click", async () => {
+      const expr = adminScheduleSelect.value;
+      if (!expr) return;
+      adminUpdateScheduleBtn.disabled = true;
+      try {
+        await adminFetch("/admin/schedule", {
+          method: "PUT",
+          body: JSON.stringify({ expression: expr }),
+        });
+        await loadAdminSchedule();
+        alert("Schedule actualizado correctamente.");
+      } catch (e) {
+        alert(`Error: ${e.message}`);
+      } finally {
+        adminUpdateScheduleBtn.disabled = false;
+      }
+    });
+  }
+
+  const adminLoadLogsBtn = document.getElementById("admin-load-logs");
+  if (adminLoadLogsBtn) {
+    adminLoadLogsBtn.addEventListener("click", async () => {
+      adminLogsContent.textContent = "Cargando logs...";
+      try {
+        const result = await adminFetch("/admin/logs");
+        if (result.lines && result.lines.length) {
+          adminLogsContent.textContent = result.lines.join("\n");
+        } else {
+          adminLogsContent.textContent = "Sin logs disponibles.";
+        }
+      } catch (e) {
+        adminLogsContent.textContent = `Error: ${e.message}`;
+      }
+    });
+  }
+  // ─── Theme Editor ────────────────────────────────────────────────
+  const themeDefaults = {
+    accent: "#4f8cff", bg: "#12121a", surface: "#1e1e2e",
+    border: "#2a2a3e", text: "#e0e0e0", headerBg: "#0d0d14",
+    title: "PMO Executive Dashboard", subtitle: "Driving Value. Delivering Results."
+  };
+
+  function applyTheme(theme) {
+    const root = document.documentElement;
+    if (theme.accent) root.style.setProperty("--accent", theme.accent);
+    if (theme.bg) root.style.setProperty("--bg", theme.bg);
+    if (theme.surface) root.style.setProperty("--surface", theme.surface);
+    if (theme.border) root.style.setProperty("--border", theme.border);
+    if (theme.text) root.style.setProperty("--text", theme.text);
+    if (theme.headerBg) root.style.setProperty("--header-bg", theme.headerBg);
+    if (theme.text) root.style.color = theme.text;
+    if (theme.bg) root.style.background = theme.bg;
+    const footer = document.querySelector(".sidebar-footer");
+    if (footer && theme.subtitle) footer.querySelector("span").textContent = theme.subtitle;
+  }
+
+  function loadThemeInputs(theme) {
+    const t = { ...themeDefaults, ...theme };
+    const el = (id) => document.getElementById(id);
+    if (el("theme-accent")) el("theme-accent").value = t.accent;
+    if (el("theme-bg")) el("theme-bg").value = t.bg;
+    if (el("theme-surface")) el("theme-surface").value = t.surface;
+    if (el("theme-border")) el("theme-border").value = t.border;
+    if (el("theme-text")) el("theme-text").value = t.text;
+    if (el("theme-header-bg")) el("theme-header-bg").value = t.headerBg;
+    if (el("theme-title")) el("theme-title").value = t.title;
+    if (el("theme-subtitle")) el("theme-subtitle").value = t.subtitle;
+  }
+
+  function getThemeFromInputs() {
+    const el = (id) => document.getElementById(id);
+    return {
+      accent: el("theme-accent")?.value || themeDefaults.accent,
+      bg: el("theme-bg")?.value || themeDefaults.bg,
+      surface: el("theme-surface")?.value || themeDefaults.surface,
+      border: el("theme-border")?.value || themeDefaults.border,
+      text: el("theme-text")?.value || themeDefaults.text,
+      headerBg: el("theme-header-bg")?.value || themeDefaults.headerBg,
+      title: el("theme-title")?.value || themeDefaults.title,
+      subtitle: el("theme-subtitle")?.value || themeDefaults.subtitle,
+    };
+  }
+
+  function updatePreview() {
+    const t = getThemeFromInputs();
+    const preview = document.getElementById("admin-theme-preview");
+    if (!preview) return;
+    preview.style.setProperty("--accent", t.accent);
+    preview.style.setProperty("--bg", t.bg);
+    preview.style.setProperty("--surface", t.surface);
+    preview.style.setProperty("--border", t.border);
+    preview.style.setProperty("--text", t.text);
+    preview.style.setProperty("--header-bg", t.headerBg);
+  }
+
+  // Load theme on startup (from static file, no auth needed)
+  fetch("theme.json", { cache: "no-store" })
+    .then(r => r.ok ? r.json() : null)
+    .then(theme => {
+      if (theme && Object.keys(theme).length) {
+        applyTheme(theme);
+        loadThemeInputs(theme);
+      }
+    })
+    .catch(() => {});
+
+  // Theme input change → preview
+  for (const id of ["theme-accent","theme-bg","theme-surface","theme-border","theme-text","theme-header-bg"]) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", updatePreview);
+  }
+
+  const themeSaveBtn = document.getElementById("admin-theme-save");
+  if (themeSaveBtn) {
+    themeSaveBtn.addEventListener("click", async () => {
+      const theme = getThemeFromInputs();
+      themeSaveBtn.disabled = true;
+      try {
+        await adminFetch("/admin/theme", {
+          method: "PUT",
+          body: JSON.stringify(theme),
+        });
+        applyTheme(theme);
+        alert("Tema guardado. Los cambios son visibles inmediatamente.");
+      } catch (e) {
+        alert(`Error: ${e.message}`);
+      } finally {
+        themeSaveBtn.disabled = false;
+      }
+    });
+  }
+
+  const themeResetBtn = document.getElementById("admin-theme-reset");
+  if (themeResetBtn) {
+    themeResetBtn.addEventListener("click", async () => {
+      if (!confirm("¿Restaurar el tema por defecto?")) return;
+      try {
+        await adminFetch("/admin/theme", {
+          method: "PUT",
+          body: JSON.stringify(themeDefaults),
+        });
+        applyTheme(themeDefaults);
+        loadThemeInputs(themeDefaults);
+        alert("Tema restaurado por defecto.");
+      } catch (e) {
+        alert(`Error: ${e.message}`);
+      }
+    });
+  }
+  // ─── End Admin ──────────────────────────────────────────────────
 
   start().catch((reason) => {
     showError(reason.message || "Error inesperado al cargar el dashboard.");

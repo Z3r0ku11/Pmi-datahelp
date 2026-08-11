@@ -16,6 +16,7 @@ param(
     [string]$RiskApiUrl = "",
     [string]$FollowupApiUrl = "",
     [string]$MinutesApiUrl = "",
+    [string]$AdminApiUrl = "",
     [string]$PortalUserEmail = "dbarrios@morrisopazo.com",
     [string]$QuickSightUserArn = (
         "arn:aws:quicksight:us-east-1:664858858204:user/default/" +
@@ -106,6 +107,25 @@ if (-not $MinutesApiUrl) {
         $MinutesApiUrl -eq "None"
     ) {
         $MinutesApiUrl = ""
+    }
+}
+
+if (-not $AdminApiUrl) {
+    $AdminApiUrl = (
+        aws cloudformation describe-stacks `
+            --stack-name "pmo-ip-admin-api-dev" `
+            --region $AwsRegion `
+            --query "Stacks[0].Outputs[?OutputKey=='AdminApiUrl'].OutputValue | [0]" `
+            --output text `
+            --no-cli-pager |
+        Out-String
+    ).Trim()
+    if (
+        $LASTEXITCODE -ne 0 -or
+        -not $AdminApiUrl -or
+        $AdminApiUrl -eq "None"
+    ) {
+        $AdminApiUrl = ""
     }
 }
 
@@ -294,6 +314,7 @@ foreach ($targetEnvironment in $publishEnvironments) {
     $config = $config.Replace("__RISK_API_URL__", $RiskApiUrl)
     $config = $config.Replace("__FOLLOWUP_API_URL__", $FollowupApiUrl)
     $config = $config.Replace("__MINUTES_API_URL__", $MinutesApiUrl)
+    $config = $config.Replace("__ADMIN_API_URL__", $AdminApiUrl)
     Set-Content `
         -LiteralPath (Join-Path $buildDirectory "config.js") `
         -Value $config `

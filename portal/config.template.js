@@ -12,5 +12,6 @@ window.PMO_CONFIG = Object.freeze({
   embedApiUrl: "__EMBED_API_URL__",
   riskApiUrl: "__RISK_API_URL__",
   followupApiUrl: "__FOLLOWUP_API_URL__",
-  minutesApiUrl: "__MINUTES_API_URL__"
+  minutesApiUrl: "__MINUTES_API_URL__",
+  adminApiUrl: "__ADMIN_API_URL__"
 });
