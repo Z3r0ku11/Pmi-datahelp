@@ -213,6 +213,25 @@
   asanaExtraction.title = `S3 VersionId: ${extractionVersion}`;
 
   // Live sync status from sync_status.json
+  // ─── Inject Framework v3 Checklists into Knowledge Cards ────────
+  const frameworkChecklists = {
+    "05": {title:"Checklist Documental \u2014 Stakeholders y Comunicaci\u00f3n",items:["Mapa de stakeholders actualizado","Plan de comunicaci\u00f3n definido (audiencia, canal, frecuencia)","Matriz RACI del proyecto","Reuniones de seguimiento calendarizadas","Canales Slack/Teams configurados","Actas de reuni\u00f3n con compromisos"],example:"Proyecto con 8 stakeholders mapeados. RACI: PM=A, Cloud Team=R, Cliente=C, Sponsor=I. Weekly status cada mi\u00e9rcoles 10:00 v\u00eda Meet."},
+    "06": {title:"Checklist Documental \u2014 Monitoreo y Control",items:["Reporte semanal de estado","Control de hitos (cumplido/en riesgo/atrasado)","Comparativo HH estimadas vs reales","Gesti\u00f3n de cambios (CPP si aplica)","Actualizaci\u00f3n de riesgos","Dashboard actualizado en Asana","Escalamiento documentado (si aplica)","Validaci\u00f3n de avance por L\u00edder PM"],example:"Reporte S6: Avance 48% (plan 50%), 580 HH de 1.200, 2 riesgos medios, 0 CPP. Sem\u00e1foro: Amarillo."},
+    "07": {title:"Checklist Documental \u2014 Validaci\u00f3n de Entregables",items:["Entregables revisados t\u00e9cnicamente","Criterios de aceptaci\u00f3n verificados","Validaci\u00f3n funcional con cliente","Acta de aceptaci\u00f3n firmada","Evidencias de cumplimiento"],example:"Entregable \u201cMigraci\u00f3n 15 servidores\u201d validado. Acta firmada 15/03. Evidencia: consola AWS + informe."},
+    "08": {title:"Checklist Documental \u2014 Cierre del Proyecto",items:["IDD (Ingenier\u00eda de Detalle) entregado","Arquitectura implementada documentada","Manuales operativos","Presentaci\u00f3n ejecutiva de cierre (PPT)","Lecciones aprendidas registradas","Transferencia operacional completada","HH finales validadas","Hitos facturables confirmados","Facturaci\u00f3n coordinada","Proyecto cerrado en Asana y Clockify","Portafolio PMO actualizado"],example:"Cierre: IDD 45 p\u00e1gs, PPT presentada, 1.180 HH (98%), 3 lecciones aprendidas, transferencia OK, factura emitida."},
+  };
+  document.querySelectorAll(".knowledge-card").forEach(card => {
+    const num = card.querySelector("summary span")?.textContent?.trim();
+    const cl = frameworkChecklists[num];
+    if (!cl) return;
+    const body = card.querySelector(".knowledge-body");
+    if (!body) return;
+    const section = document.createElement("section");
+    section.className = "checklist-inline";
+    section.innerHTML = `<h3>${cl.title}</h3><ul class="check-list">${cl.items.map(i=>`<li>${i}</li>`).join("")}</ul><div class="checklist-example"><strong>Ejemplo:</strong> ${cl.example}</div>`;
+    body.appendChild(section);
+  });
+
   fetch("sync_status.json", { cache: "no-store" })
     .then(r => r.ok ? r.json() : null)
     .then(sync => {
@@ -2407,6 +2426,66 @@
     } catch (e) {
       adminStatusContent.innerHTML = `<p class="admin-error">${e.message}</p>`;
     }
+    // Check live progress
+    loadSyncProgress();
+  }
+
+  const adminProgressBar = document.getElementById("admin-progress-bar");
+  const adminProgressFill = document.getElementById("admin-progress-fill");
+  const adminProgressDetail = document.getElementById("admin-progress-detail");
+  let progressPolling = null;
+
+  async function loadSyncProgress() {
+    try {
+      const resp = await fetch("sync_progress.json", { cache: "no-store" });
+      if (!resp.ok) return;
+      const progress = await resp.json();
+      if (!progress || !progress.stage) return;
+
+      // Check if progress is recent (within last 30 minutes)
+      const updatedAt = new Date(progress.updatedAt || 0);
+      const age = Date.now() - updatedAt.getTime();
+      if (age > 30 * 60 * 1000) {
+        // Old progress, hide bar
+        if (adminProgressBar) adminProgressBar.hidden = true;
+        if (adminProgressDetail) adminProgressDetail.textContent = "";
+        stopProgressPolling();
+        return;
+      }
+
+      if (adminProgressBar) {
+        adminProgressBar.hidden = false;
+        adminProgressFill.style.width = `${progress.percent || 0}%`;
+      }
+      if (adminProgressDetail) {
+        adminProgressDetail.textContent = `${progress.stage} (${progress.percent}%) — ${progress.detail || ""}`;
+      }
+
+      // If not 100%, start polling
+      if (progress.percent < 100) {
+        startProgressPolling();
+      } else {
+        stopProgressPolling();
+        // Refresh status after completion
+        setTimeout(loadAdminStatus, 3000);
+      }
+    } catch {
+      // No progress file = no sync in progress
+      if (adminProgressBar) adminProgressBar.hidden = true;
+      if (adminProgressDetail) adminProgressDetail.textContent = "";
+    }
+  }
+
+  function startProgressPolling() {
+    if (progressPolling) return;
+    progressPolling = setInterval(loadSyncProgress, 5000);
+  }
+
+  function stopProgressPolling() {
+    if (progressPolling) {
+      clearInterval(progressPolling);
+      progressPolling = null;
+    }
   }
 
   async function loadAdminSchedule() {
@@ -2428,6 +2507,16 @@
   function loadAdminPanel() {
     loadAdminStatus();
     loadAdminSchedule();
+    // In PROD: hide sync and schedule controls (read-only)
+    const env = (config.environment || "").toUpperCase();
+    if (env === "PROD") {
+      const syncCard = document.getElementById("admin-force-sync")?.closest(".admin-card");
+      if (syncCard) syncCard.hidden = true;
+      const scheduleSelect = document.getElementById("admin-schedule-select");
+      if (scheduleSelect) scheduleSelect.disabled = true;
+      const scheduleBtn = document.getElementById("admin-update-schedule");
+      if (scheduleBtn) scheduleBtn.hidden = true;
+    }
   }
 
   const adminRefreshBtn = document.getElementById("admin-refresh-status");
@@ -2486,6 +2575,25 @@
         }
       } catch (e) {
         adminLogsContent.textContent = `Error: ${e.message}`;
+      }
+    });
+  }
+
+  const adminDeployProdBtn = document.getElementById("admin-deploy-prod");
+  const adminDeployResult = document.getElementById("admin-deploy-result");
+  if (adminDeployProdBtn) {
+    adminDeployProdBtn.addEventListener("click", async () => {
+      if (!confirm("¿Desplegar todos los cambios de DEV a PROD?\n\nEsto actualizará el portal de producción inmediatamente.")) return;
+      adminDeployProdBtn.disabled = true;
+      adminDeployResult.hidden = false;
+      adminDeployResult.innerHTML = '<p>Desplegando a PROD...</p>';
+      try {
+        const result = await adminFetch("/admin/deploy-prod", { method: "POST" });
+        adminDeployResult.innerHTML = `<p class="admin-success">PROD actualizado: ${result.filesCopied} archivos copiados.</p>`;
+      } catch (e) {
+        adminDeployResult.innerHTML = `<p class="admin-error">Error: ${e.message}</p>`;
+      } finally {
+        adminDeployProdBtn.disabled = false;
       }
     });
   }

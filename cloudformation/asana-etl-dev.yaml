@@ -276,14 +276,36 @@ Resources:
                 Resource: !GetAtt DataBucket.Arn
               - Effect: Allow
                 Action:
+                  - s3:GetObject
                   - s3:AbortMultipartUpload
                   - s3:PutObject
                 Resource: !Sub "${DataBucket.Arn}/*"
               - Effect: Allow
                 Action:
                   - s3:PutObject
-                Resource: !Sub >-
-                  arn:${AWS::Partition}:s3:::pmo-executive-portal-dev-${AWS::AccountId}-us-east-1/sync_status.json
+                Resource:
+                  - !Sub >-
+                    arn:${AWS::Partition}:s3:::pmo-executive-portal-dev-${AWS::AccountId}-us-east-1/sync_status.json
+                  - !Sub >-
+                    arn:${AWS::Partition}:s3:::pmo-executive-portal-dev-${AWS::AccountId}-us-east-1/sync_progress.json
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource:
+                  - !Sub >-
+                    arn:${AWS::Partition}:s3:::pmo-executive-portal-prod-${AWS::AccountId}-us-east-1/sync_status.json
+                  - !Sub >-
+                    arn:${AWS::Partition}:s3:::pmo-executive-portal-prod-${AWS::AccountId}-us-east-1/sync_progress.json
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource: arn:aws:s3:::pmo-asana-analytics-us-east-1-664858858204
+              - Effect: Allow
+                Action:
+                  - s3:AbortMultipartUpload
+                  - s3:PutObject
+                Resource: arn:aws:s3:::pmo-asana-analytics-us-east-1-664858858204/*
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -332,6 +354,10 @@ Resources:
               Value: !Ref ContainerImageTag
             - Name: PORTAL_BUCKET
               Value: !Sub pmo-executive-portal-dev-${AWS::AccountId}-us-east-1
+            - Name: SECONDARY_S3_BUCKET
+              Value: pmo-asana-analytics-us-east-1-664858858204
+            - Name: SECONDARY_PORTAL_BUCKET
+              Value: !Sub pmo-executive-portal-prod-${AWS::AccountId}-us-east-1
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -527,6 +553,17 @@ Resources:
                   - !Sub "${DataBucket.Arn}/projects/projects.csv"
                   - !Sub "${DataBucket.Arn}/tasks/tasks.csv"
                   - !Sub "${DataBucket.Arn}/project_metrics/project_metrics.csv"
+                  - !Sub "${DataBucket.Arn}/metadata/*"
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::pmo-executive-portal-dev-${AWS::AccountId}-us-east-1/*
+                  - !Sub arn:${AWS::Partition}:s3:::pmo-executive-portal-prod-${AWS::AccountId}-us-east-1/*
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                Resource: "*"
 
 Outputs:
   DataBucketName:

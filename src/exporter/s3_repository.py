@@ -20,7 +20,9 @@ class S3Repository:
         self,
         local_path: str,
         object_key: str,
+        bucket: str | None = None,
     ) -> None:
+        target_bucket = bucket or settings.s3_bucket
         path = Path(local_path)
 
         if not path.exists():
@@ -36,7 +38,7 @@ class S3Repository:
         try:
             self.client.upload_file(
                 Filename=str(path),
-                Bucket=settings.s3_bucket,
+                Bucket=target_bucket,
                 Key=object_key,
                 ExtraArgs={
                     "ServerSideEncryption": "AES256",
@@ -48,7 +50,7 @@ class S3Repository:
             logger.exception(
                 "No fue posible cargar el archivo a S3 | "
                 "bucket=%s | key=%s | local_path=%s",
-                settings.s3_bucket,
+                target_bucket,
                 object_key,
                 path,
             )
@@ -57,7 +59,7 @@ class S3Repository:
         logger.info(
             "Archivo cargado correctamente a S3 | "
             "bucket=%s | key=%s | local_path=%s",
-            settings.s3_bucket,
+            target_bucket,
             object_key,
             path,
         )

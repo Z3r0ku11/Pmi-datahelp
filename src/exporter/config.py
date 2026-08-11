@@ -121,6 +121,16 @@ class Settings:
         "",
     )
 
+    secondary_s3_bucket: str = os.getenv(
+        "SECONDARY_S3_BUCKET",
+        "",
+    )
+
+    secondary_portal_bucket: str = os.getenv(
+        "SECONDARY_PORTAL_BUCKET",
+        "",
+    )
+
     output_directory: str = os.getenv(
         "OUTPUT_DIRECTORY",
         tempfile.gettempdir(),

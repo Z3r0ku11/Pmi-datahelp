@@ -422,6 +422,8 @@ def lambda_handler(
             "Iniciando extracción de proyectos desde Asana"
         )
 
+        _publish_progress("Extrayendo proyectos", 5, "Consultando portafolio Asana")
+
         project_result = project_service.execute()
         projects = validate_project_result(
             project_result
@@ -432,6 +434,11 @@ def lambda_handler(
         # -----------------------------------------------------
         logger.info(
             "Iniciando extracción de tareas y subtareas"
+        )
+
+        _publish_progress(
+            "Extrayendo tareas", 20,
+            f"{len(projects)} proyectos encontrados"
         )
 
         tasks_result = task_service.execute(
@@ -500,6 +507,11 @@ def lambda_handler(
         # -----------------------------------------------------
         logger.info(
             "Iniciando cálculo de métricas ejecutivas PMO"
+        )
+
+        _publish_progress(
+            "Calculando métricas", 70,
+            f"{len(tasks)} tareas extraídas"
         )
 
         project_metrics = (
@@ -575,6 +587,8 @@ def lambda_handler(
             settings.s3_bucket,
         )
 
+        _publish_progress("Subiendo a S3", 85, "Generando CSVs y cargando")
+
         s3_repository.upload_file(
             local_path=str(projects_file),
             object_key=settings.projects_key,
@@ -602,9 +616,40 @@ def lambda_handler(
             object_key=portfolio_health_snapshot_key,
         )
 
+        # Replicar a bucket secundario (PROD)
+        if settings.secondary_s3_bucket:
+            logger.info(
+                "Replicando archivos a bucket secundario | bucket=%s",
+                settings.secondary_s3_bucket,
+            )
+            for local, key in [
+                (projects_file, settings.projects_key),
+                (tasks_file, settings.tasks_key),
+                (project_metrics_file, settings.project_metrics_key),
+                (project_health_snapshot_file, project_health_snapshot_key),
+                (portfolio_health_snapshot_file, portfolio_health_snapshot_key),
+            ]:
+                try:
+                    s3_repository.upload_file(
+                        local_path=str(local),
+                        object_key=key,
+                        bucket=settings.secondary_s3_bucket,
+                    )
+                except Exception:
+                    logger.warning(
+                        "No fue posible replicar a bucket secundario | key=%s",
+                        key,
+                        exc_info=True,
+                    )
+
         # -----------------------------------------------------
         # 6. Guardar timestamp de sincronización
         # -----------------------------------------------------
+        _publish_progress(
+            "Completado", 100,
+            f"{len(project_records)} proyectos, {len(tasks)} tareas"
+        )
+
         s3_repository.write_json(
             object_key=SYNC_METADATA_KEY,
             data={
@@ -642,6 +687,36 @@ def lambda_handler(
             except Exception:
                 logger.warning(
                     "No fue posible publicar sync_status.json en el portal",
+                    exc_info=True,
+                )
+
+        # Publicar sync_status en portal secundario (PROD)
+        if settings.secondary_portal_bucket:
+            try:
+                import boto3 as _boto3
+                import json as _json
+                portal_s3 = _boto3.client(
+                    "s3", region_name=settings.aws_region
+                )
+                portal_s3.put_object(
+                    Bucket=settings.secondary_portal_bucket,
+                    Key="sync_status.json",
+                    Body=_json.dumps({
+                        "last_sync_at": sync_start,
+                        "projects": len(project_records),
+                        "tasks": len(tasks),
+                    }, ensure_ascii=False),
+                    ServerSideEncryption="AES256",
+                    ContentType="application/json",
+                    CacheControl="no-cache, no-store, must-revalidate",
+                )
+                logger.info(
+                    "sync_status.json publicado en portal PROD | bucket=%s",
+                    settings.secondary_portal_bucket,
+                )
+            except Exception:
+                logger.warning(
+                    "No fue posible publicar sync_status.json en portal PROD",
                     exc_info=True,
                 )
 

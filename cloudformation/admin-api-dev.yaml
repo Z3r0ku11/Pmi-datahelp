@@ -97,7 +97,7 @@ Resources:
                 Action:
                   - iam:PassRole
                 Resource: !Sub >-
-                  arn:${AWS::Partition}:iam::${AWS::AccountId}:role/pmo-ip-dev-asana-etl-scheduler
+                  arn:${AWS::Partition}:iam::${AWS::AccountId}:role/pmo-ip-*-asana-etl-scheduler
               - Effect: Allow
                 Action:
                   - s3:GetObject
@@ -105,6 +105,25 @@ Resources:
                 Resource:
                   - !Sub arn:${AWS::Partition}:s3:::${PortalBucketName}/sync_status.json
                   - !Sub arn:${AWS::Partition}:s3:::${PortalBucketName}/theme.json
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${PortalBucketName}
+                  - !Sub arn:${AWS::Partition}:s3:::${PortalBucketName}/*
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - arn:aws:s3:::pmo-executive-portal-prod-664858858204-us-east-1
+                  - arn:aws:s3:::pmo-executive-portal-prod-664858858204-us-east-1/*
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - cognito-idp:ListUsers
@@ -131,6 +150,8 @@ Resources:
           LOG_GROUP: !Ref LogGroupName
           USER_POOL_ID: !Ref UserPoolId
           ADMIN_EMAIL: !Ref AdminEmail
+          PROD_PORTAL_BUCKET: pmo-executive-portal-prod-664858858204-us-east-1
+          PROD_DISTRIBUTION_ID: E1DIOY1CMNCF9Q
       Code:
         ZipFile: |
           import json,os,logging,re
@@ -215,6 +236,26 @@ Resources:
               S3.put_object(Bucket=BUCKET,Key="theme.json",Body=json.dumps(body,ensure_ascii=False),ServerSideEncryption="AES256",ContentType="application/json",CacheControl="no-cache, no-store, must-revalidate")
               return resp(200,{"saved":True})
              except Exception as e:L.exception("theme");return resp(500,{"error":str(e)[:200]})
+           elif path=="/admin/deploy-prod"and method=="POST":
+            try:
+             PROD_BUCKET=os.environ.get("PROD_PORTAL_BUCKET","")
+             PROD_DIST=os.environ.get("PROD_DISTRIBUTION_ID","")
+             if not PROD_BUCKET:return resp(400,{"error":"PROD no configurado."})
+             # List and copy all objects from DEV to PROD
+             cf=boto3.client("cloudfront")
+             objs=S3.list_objects_v2(Bucket=BUCKET)
+             copied=0
+             for obj in objs.get("Contents",[]):
+              key=obj["Key"]
+              if key.startswith(".")or"backup"in key:continue
+              copy_src={"Bucket":BUCKET,"Key":key}
+              S3.copy_object(CopySource=copy_src,Bucket=PROD_BUCKET,Key=key,ServerSideEncryption="AES256",MetadataDirective="COPY")
+              copied+=1
+             # Invalidate PROD CloudFront
+             if PROD_DIST:
+              cf.create_invalidation(DistributionId=PROD_DIST,InvalidationBatch={"Paths":{"Quantity":1,"Items":["/*"]},"CallerReference":str(int(__import__("time").time()))})
+             return resp(200,{"deployed":True,"filesCopied":copied,"prodBucket":PROD_BUCKET})
+            except Exception as e:L.exception("deploy-prod");return resp(500,{"error":str(e)[:200]})
            return resp(404,{"error":"Not found"})
 
   AdminApi:
@@ -315,6 +356,15 @@ Resources:
     Properties:
       ApiId: !Ref AdminApi
       RouteKey: PUT /admin/theme
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AdminAuthorizer
+      Target: !Sub integrations/${AdminIntegration}
+
+  DeployProdRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AdminApi
+      RouteKey: POST /admin/deploy-prod
       AuthorizationType: JWT
       AuthorizerId: !Ref AdminAuthorizer
       Target: !Sub integrations/${AdminIntegration}
