@@ -471,7 +471,15 @@ Resources:
                 Resource: !GetAtt ContainerRepository.Arn
               - Effect: Allow
                 Action:
+                  - s3:GetBucketLocation
+                  - s3:GetBucketVersioning
+                  - s3:ListBucket
+                  - s3:ListBucketVersions
+                Resource: !Sub arn:${AWS::Partition}:s3:::${DataBucketName}
+              - Effect: Allow
+                Action:
                   - s3:GetObject
+                  - s3:GetObjectVersion
                 Resource: !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/${SourceArtifactKey}
 
   CodeBuildProject:
