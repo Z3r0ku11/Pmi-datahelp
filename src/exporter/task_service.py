@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 from asana_client import AsanaApiError, AsanaClient
+from utils import get_project_filter_dimensions
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,16 @@ class TaskService:
         skipped_count = 0
 
         for project_index, project in enumerate(projects, start=1):
+            progress = 40 + round(
+                project_index / max(len(projects), 1) * 35
+            )
+            logger.info(
+                "Progreso ETL | etapa=Tareas | porcentaje=%s | "
+                "mensaje=Procesando proyecto %s de %s",
+                progress,
+                project_index,
+                len(projects),
+            )
             project_id = str(project.get("gid", "")).strip()
             project_name = str(project.get("name", "")).strip()
 
@@ -221,13 +232,25 @@ class TaskService:
                 parent.get("name", "")
             ).strip()
 
+        dimensions = get_project_filter_dimensions(project)
+
         return {
             "project_gid": str(project.get("gid", "")).strip(),
             "project_name": str(project.get("name", "")).strip(),
             "responsable_proyecto": str(
                 project.get("responsable_proyecto", "")
             ).strip(),
+            **dimensions,
             "record_type": record_type,
+            "resource_type": str(
+                task.get("resource_type", "")
+            ).strip(),
+            "resource_subtype": str(
+                task.get("resource_subtype", "")
+            ).strip(),
+            "deleted": str(
+                task.get("deleted", False)
+            ).strip().lower() in ("true", "1", "yes"),
             "task_gid": str(task.get("gid", "")).strip(),
             "task_name": str(task.get("name", "")).strip(),
             "parent_task_gid": parent_task_gid,

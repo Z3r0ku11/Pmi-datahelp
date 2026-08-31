@@ -10,6 +10,7 @@ COPY requirements.txt .
 RUN python -m pip install --no-cache-dir --requirement requirements.txt
 
 COPY src/exporter/ ./
+COPY Facturacion/ ./facturacion/
 
 RUN addgroup -S -g 10001 pmo \
     && adduser -S -D -H -u 10001 -G pmo pmo \

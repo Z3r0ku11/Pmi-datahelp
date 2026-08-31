@@ -38,6 +38,7 @@ class AsanaClient:
             "name",
             "resource_type",
             "archived",
+            "deleted",
             "completed",
             "completed_at",
             "created_at",
@@ -75,6 +76,7 @@ class AsanaClient:
             "name",
             "resource_type",
             "resource_subtype",
+            "deleted",
             "completed",
             "completed_at",
             "created_at",
@@ -115,6 +117,7 @@ class AsanaClient:
             "name",
             "resource_type",
             "resource_subtype",
+            "deleted",
             "completed",
             "completed_at",
             "created_at",
@@ -146,6 +149,15 @@ class AsanaClient:
             "custom_fields.multi_enum_values.name",
             "custom_fields.people_value.gid",
             "custom_fields.people_value.name",
+        ]
+    )
+
+    SECTION_OPT_FIELDS = ",".join(
+        [
+            "gid",
+            "name",
+            "resource_type",
+            "deleted",
         ]
     )
 
@@ -317,6 +329,28 @@ class AsanaClient:
 
         return result
 
+    def get_project_sections(
+        self,
+        project_id: str,
+    ) -> list[dict[str, Any]]:
+        result = self.get(
+            f"projects/{project_id}/sections",
+            params={
+                "opt_fields": self.SECTION_OPT_FIELDS,
+                "limit": self.PAGE_LIMIT,
+            },
+            paginate=True,
+        )
+
+        if not isinstance(result, list):
+            raise TypeError(
+                "Se esperaba una lista de secciones para el proyecto "
+                f"'{project_id}', pero Asana devolvió: "
+                f"{type(result).__name__}"
+            )
+
+        return result
+
     def get_project_tasks(
         self,
         project_id: str,
@@ -367,20 +401,17 @@ class AsanaClient:
     ) -> dict[str, Any]:
         if not response.ok:
             logger.error(
-                "Error Asana API | status=%s | url=%s | body=%s",
+                "Error Asana API | status=%s | url=%s",
                 response.status_code,
                 response.url,
-                response.text,
             )
 
             raise AsanaApiError(
                 message=(
                     f"Asana respondió HTTP {response.status_code}. "
-                    f"URL: {response.url}. "
-                    f"Detalle: {response.text}"
+                    f"URL: {response.url}."
                 ),
                 status_code=response.status_code,
-                response_body=response.text,
             )
 
         try:

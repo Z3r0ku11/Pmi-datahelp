@@ -1,0 +1,544 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: PMO Asana ETL production-only ECS Fargate pipeline.
+
+Parameters:
+  DataBucketName:
+    Type: String
+    Default: pmo-asana-analytics-us-east-1-664858858204
+  ContainerImageTag:
+    Type: String
+    Default: latest
+    AllowedPattern: "[A-Za-z0-9_.-]+"
+  SecretName:
+    Type: String
+    Default: pmo/asana
+  AsanaWorkspaceId:
+    Type: String
+    Default: "677426918442017"
+  AsanaPortfolioId:
+    Type: String
+    Default: "1207850474099261"
+  ScheduleExpression:
+    Type: String
+    Default: "cron(5 * * * ? *)"
+  ScheduleState:
+    Type: String
+    Default: DISABLED
+    AllowedValues:
+      - ENABLED
+      - DISABLED
+  SourceRepositoryUrl:
+    Type: String
+    Default: https://github.com/Z3r0ku11/pmo-intelligence-platform.git
+  SourceVersion:
+    Type: String
+    Default: feature/checklist-risks-admin-v1.9
+
+Resources:
+  ProdVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.43.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: pmo-ip-prod
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: prod
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: pmo-ip-prod
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: prod
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref ProdVpc
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: 10.43.1.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref ProdVpc
+      Tags:
+        - Key: Name
+          Value: pmo-ip-prod-public-a
+        - Key: Environment
+          Value: prod
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: 10.43.2.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref ProdVpc
+      Tags:
+        - Key: Name
+          Value: pmo-ip-prod-public-b
+        - Key: Environment
+          Value: prod
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProdVpc
+      Tags:
+        - Key: Name
+          Value: pmo-ip-prod-public
+        - Key: Environment
+          Value: prod
+
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetA
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetB
+
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Outbound HTTPS for the production Asana ETL.
+      VpcId: !Ref ProdVpc
+      SecurityGroupEgress:
+        - Description: HTTPS to Asana and AWS public endpoints
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: pmo-ip-prod-asana-etl
+        - Key: Environment
+          Value: prod
+
+  DataBucketAccess:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: pmo-ip-prod-asana-etl-data
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}*
+          - Effect: Allow
+            Action:
+              - s3:GetBucketLocation
+              - s3:ListBucket
+            Resource: !Sub arn:${AWS::Partition}:s3:::${DataBucketName}
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:AbortMultipartUpload
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/projects/projects.csv
+              - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/tasks/tasks.csv
+              - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/project_metrics/project_metrics.csv
+              - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/metadata/*
+              - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/financial_breakdown/*
+              - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/project_s_curve/*
+              - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/project_timeline/*
+              - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/project_load_timeline/*
+              - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/pm_compliance/*
+              - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/Facturacion/*
+              - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/history/*
+              - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/quicksight/manifests/*
+
+  QuickSightIngestionAccess:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: pmo-ip-prod-asana-etl-quicksight
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - quicksight:CreateIngestion
+              - quicksight:DescribeIngestion
+              - quicksight:ListIngestions
+            Resource:
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-dataset-unificado-v1
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-financial-breakdown-v1
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-project-s-curve-dev
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-project-timeline-dev
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-project-load-timeline-v1
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-pm-compliance-v1
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/facturacion_proyectos_proximos_finalizar
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/facturacion_proyectos_proximos_finalizar_resumen
+
+  ContainerRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: pmo-ip/asana-exporter-prod
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      ImageTagMutability: IMMUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {"rules":[{"rulePriority":1,"description":"Keep ten recent images","selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":10},"action":{"type":"expire"}}]}
+      Tags:
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: prod
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: pmo-ip-prod
+      ClusterSettings:
+        - Name: containerInsights
+          Value: disabled
+      Tags:
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: prod
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-ip-prod-asana-etl-execution
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: pull-production-image
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: !GetAtt ContainerRepository.Arn
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-ip-prod-asana-etl-task
+      ManagedPolicyArns:
+        - !Ref DataBucketAccess
+        - !Ref QuickSightIngestionAccess
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: pmo-ip-prod-asana-exporter
+      Cpu: "1024"
+      Memory: "2048"
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+      ContainerDefinitions:
+        - Name: asana-exporter
+          Essential: true
+          Image: !Sub ${ContainerRepository.RepositoryUri}:${ContainerImageTag}
+          Environment:
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: AWS_ACCOUNT_ID
+              Value: !Ref AWS::AccountId
+            - Name: SECRET_NAME
+              Value: !Ref SecretName
+            - Name: ASANA_WORKSPACE_ID
+              Value: !Ref AsanaWorkspaceId
+            - Name: ASANA_PORTFOLIO_ID
+              Value: !Ref AsanaPortfolioId
+            - Name: S3_BUCKET
+              Value: !Ref DataBucketName
+            - Name: PROJECTS_KEY
+              Value: projects/projects.csv
+            - Name: TASKS_KEY
+              Value: tasks/tasks.csv
+            - Name: PROJECT_METRICS_KEY
+              Value: project_metrics/project_metrics.csv
+            - Name: FINANCIAL_BREAKDOWN_KEY
+              Value: financial_breakdown/financial_breakdown.csv
+            - Name: PMO_ENVIRONMENT
+              Value: prod
+            - Name: PMO_GIT_SHA
+              Value: !Ref ContainerImageTag
+            - Name: QUICKSIGHT_INGESTION_ENABLED
+              Value: "true"
+            - Name: QUICKSIGHT_DATASET_IDS
+              Value: pmo-dataset-unificado-v1,pmo-financial-breakdown-v1,pmo-project-s-curve-dev,pmo-project-timeline-dev,pmo-project-load-timeline-v1,pmo-pm-compliance-v1,facturacion_proyectos_proximos_finalizar,facturacion_proyectos_proximos_finalizar_resumen
+            - Name: OUTPUT_DIRECTORY
+              Value: /tmp/pmo-export
+      Tags:
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: prod
+
+  SchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-ip-prod-asana-etl-scheduler
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: run-production-etl
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecs:RunTask
+                Resource: !Ref TaskDefinition
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !GetAtt Cluster.Arn
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource:
+                  - !GetAtt TaskExecutionRole.Arn
+                  - !GetAtt TaskRole.Arn
+
+  Schedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: pmo-ip-prod-asana-etl
+      Description: Production Asana ETL every hour at minute 5 in America/Santiago.
+      State: !Ref ScheduleState
+      ScheduleExpression: !Ref ScheduleExpression
+      ScheduleExpressionTimezone: America/Santiago
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt Cluster.Arn
+        RoleArn: !GetAtt SchedulerRole.Arn
+        EcsParameters:
+          EnableECSManagedTags: false
+          EnableExecuteCommand: false
+          LaunchType: FARGATE
+          PlatformVersion: LATEST
+          TaskCount: 1
+          TaskDefinitionArn: !Ref TaskDefinition
+          NetworkConfiguration:
+            AwsvpcConfiguration:
+              AssignPublicIp: ENABLED
+              SecurityGroups: [!Ref TaskSecurityGroup]
+              Subnets: [!Ref PublicSubnetA, !Ref PublicSubnetB]
+
+  GitHubProdDeploymentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-ip-github-prod-deployment
+      MaxSessionDuration: 7200
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: repo:Z3r0ku11@128507805/pmo-intelligence-platform@1317562141:ref:refs/heads/main
+      Policies:
+        - PolicyName: publish-and-deploy-production-etl
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:DescribeImages
+                  - ecr:DescribeImageScanFindings
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:StartImageScan
+                  - ecr:UploadLayerPart
+                Resource: !GetAtt ContainerRepository.Arn
+              - Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:GetTemplateSummary
+                Resource: !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/pmo-ip-asana-etl-prod/*
+              - Effect: Allow
+                Action:
+                  - ecs:DescribeTasks
+                  - ecs:RunTask
+                Resource: "*"
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource:
+                  - !GetAtt TaskExecutionRole.Arn
+                  - !GetAtt TaskRole.Arn
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: ecs-tasks.amazonaws.com
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/projects/projects.csv
+                  - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/tasks/tasks.csv
+                  - !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/project_metrics/project_metrics.csv
+
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pmo-ip-prod-asana-etl-codebuild
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: build-and-publish-production-image
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:DescribeImages
+                  - ecr:DescribeImageScanFindings
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:StartImageScan
+                  - ecr:UploadLayerPart
+                Resource: !GetAtt ContainerRepository.Arn
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: pmo-ip-prod-asana-etl-image
+      Description: Builds the production ETL image inside AWS and publishes it to ECR.
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Source:
+        Type: GITHUB
+        Location: !Ref SourceRepositoryUrl
+        GitCloneDepth: 1
+        InsecureSsl: false
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - export IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION}"
+                - export IMAGE_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/pmo-ip/asana-exporter-prod:${IMAGE_TAG}"
+                - aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+            build:
+              commands:
+                - docker build --label "org.opencontainers.image.revision=${IMAGE_TAG}" --tag "${IMAGE_URI}" .
+            post_build:
+              commands:
+                - docker push "${IMAGE_URI}"
+                - aws ecr start-image-scan --repository-name pmo-ip/asana-exporter-prod --image-id "imageTag=${IMAGE_TAG}" || true
+      SourceVersion: !Ref SourceVersion
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        Type: LINUX_CONTAINER
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+      LogsConfig:
+        CloudWatchLogs:
+          Status: DISABLED
+        S3Logs:
+          Status: DISABLED
+      TimeoutInMinutes: 60
+      QueuedTimeoutInMinutes: 30
+      Tags:
+        - Key: Project
+          Value: pmo-intelligence-platform
+        - Key: Environment
+          Value: prod
+
+Outputs:
+  DataBucketName:
+    Value: !Ref DataBucketName
+  RepositoryUri:
+    Value: !GetAtt ContainerRepository.RepositoryUri
+  ClusterName:
+    Value: !Ref Cluster
+  TaskDefinitionArn:
+    Value: !Ref TaskDefinition
+  SecurityGroupId:
+    Value: !Ref TaskSecurityGroup
+  SubnetIds:
+    Value: !Join [",", [!Ref PublicSubnetA, !Ref PublicSubnetB]]
+  ScheduleName:
+    Value: !Ref Schedule
+  CodeBuildProjectName:
+    Value: !Ref CodeBuildProject

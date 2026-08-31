@@ -1,8 +1,24 @@
 import logging
 import unicodedata
+from datetime import date, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+SERVICES_PROFESSIONALS = frozenset(
+    {
+        "daniel barrios",
+        "hector cayul",
+        "denisse arce",
+        "luis montero",
+        "sebastian neira",
+        "carlo sorrel",
+        "carlos sorrel",
+        "fernando moreno",
+        "fernando morales",
+        "victor vivallo",
+    }
+)
 
 
 def normalize_text(value: str | None) -> str:
@@ -20,6 +36,52 @@ def normalize_text(value: str | None) -> str:
     return " ".join(
         without_accents.lower().strip().split()
     )
+
+
+def responsible_group(value: Any) -> str:
+    """Return the governed responsible group for filter dimensions."""
+    return (
+        "Servicios profesionales"
+        if normalize_text(str(value or "")) in SERVICES_PROFESSIONALS
+        else "Otros PM"
+    )
+
+
+def project_year(value: Any) -> str:
+    """Extract the ISO calendar year from a project date value."""
+    if value in (None, ""):
+        return ""
+    if isinstance(value, datetime):
+        return str(value.year)
+    if isinstance(value, date):
+        return str(value.year)
+    text = str(value).strip()
+    if len(text) >= 4 and text[:4].isdigit():
+        return text[:4]
+    return ""
+
+
+def get_project_filter_dimensions(
+    project: dict[str, Any],
+) -> dict[str, str]:
+    """Build the common dimensions copied to derived project datasets."""
+    custom_fields = project.get("custom_fields") or []
+    if not isinstance(custom_fields, list):
+        custom_fields = []
+    responsible = str(
+        project.get("responsable_proyecto")
+        or get_custom_field_value(custom_fields, "Responsable Proyecto")
+        or ""
+    ).strip()
+    start_value = get_custom_field_value(
+        custom_fields,
+        "Fecha Inicio del proyecto",
+    )
+    return {
+        "pmo_id": get_custom_field_value(custom_fields, "PMO ID"),
+        "project_year": project_year(start_value),
+        "responsable_grupo": responsible_group(responsible),
+    }
 
 
 def get_custom_field_value(

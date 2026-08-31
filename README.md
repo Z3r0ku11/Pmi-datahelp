@@ -50,35 +50,35 @@ python -m unittest discover -s tests -v
 Las credenciales y el token de Asana no se almacenan en Git. El ETL obtiene
 el token desde AWS Secrets Manager.
 
-## Ambientes
+## Operación productiva
 
 - Región operativa: `us-east-1`
-- Portal DEV: CloudFront
-- Portal PROD: CloudFront
-- QuickSight: Enterprise, usuario administrador estándar
-- ETL DEV: ECS Fargate efímero, bucket aislado y calendario deshabilitado
+- Bucket contractual: `pmo-asana-analytics-us-east-1-664858858204`
+- Runtime: ECS Fargate
+- Programación: EventBridge Scheduler, cada hora al minuto 5,
+  `America/Santiago`
+- Secuencia: Asana -> ECS -> CSV/manifiestos en S3 -> `CreateIngestion` de
+  QuickSight
+- Credencial Asana: AWS Secrets Manager, secreto `pmo/asana`
 
-## Despliegue del ETL en DEV
+La ejecución horaria no depende de GitHub Actions, estaciones de trabajo ni
+interacción humana. El ciclo de datos lo ejecuta AWS.
 
-El piloto de Asana se despliega sin modificar el bucket ni el dataset de
-producción:
+## Despliegue del ETL en producción
 
-```powershell
-.\scripts\deploy-asana-etl-dev.ps1 -InfrastructureOnly
-.\scripts\deploy-asana-etl-dev.ps1
-.\scripts\deploy-asana-etl-dev.ps1 -RunTask
-.\scripts\validate-asana-etl-dev.ps1
-```
+La infraestructura productiva está definida en
+`cloudformation/asana-etl-prod.yaml`. AWS CodeBuild obtiene el código de la
+rama publicada, construye la imagen dentro de AWS y la publica en ECR. ECS
+Fargate ejecuta esa imagen y EventBridge Scheduler inicia el ciclo horario.
 
-El despliegue requiere una sesión AWS válida y Docker Desktop iniciado. El
-script crea un bucket con el patrón
-`pmo-intelligence-platform-dev-<cuenta>-us-east-1`, conserva las rutas
-contractuales de los CSV y deja EventBridge Scheduler deshabilitado.
+El Scheduler se crea inicialmente deshabilitado. Solo se habilita después de
+publicar la imagen y validar una tarea Fargate productiva. El camino DEV
+permanece deshabilitado para impedir que una ejecución secundaria escriba
+datos contractuales.
 
-Cuando no existe un motor Docker Linux local, el workflow manual
-`Deploy Asana ETL DEV` construye y publica la imagen mediante GitHub Actions.
-La autenticación usa OIDC y credenciales temporales; no requiere Access Keys
-en GitHub.
+La primera creación del stack requiere una sesión AWS autorizada para crear
+los roles IAM, CodeBuild, ECR, ECS, red y Scheduler. El runtime no usa
+credenciales fuera de AWS.
 
 ## Piloto de Intelligence
 

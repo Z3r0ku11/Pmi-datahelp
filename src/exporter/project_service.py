@@ -29,6 +29,12 @@ class ProjectService:
             "Elementos encontrados en el portafolio: %s",
             len(portfolio_items),
         )
+        logger.info(
+            "Filtro de responsables: %s",
+            "DESACTIVADO - todos los proyectos del portafolio"
+            if settings.include_all_projects
+            else "ACTIVADO",
+        )
 
         selected_projects: list[dict[str, Any]] = []
         discarded_projects: list[dict[str, str]] = []
@@ -36,6 +42,16 @@ class ProjectService:
         skipped_items: list[dict[str, str]] = []
 
         for index, item in enumerate(portfolio_items, start=1):
+            progress = 5 + round(
+                index / max(len(portfolio_items), 1) * 35
+            )
+            logger.info(
+                "Progreso ETL | etapa=Proyectos | porcentaje=%s | "
+                "mensaje=Procesando proyecto %s de %s",
+                progress,
+                index,
+                len(portfolio_items),
+            )
             project_id = str(item.get("gid", "")).strip()
             project_name = str(item.get("name", "")).strip()
             resource_type = str(
@@ -175,6 +191,28 @@ class ProjectService:
                 continue
 
             project["responsable_proyecto"] = responsible
+            try:
+                project["sections"] = self.client.get_project_sections(
+                    project_id
+                )
+            except AsanaApiError as exc:
+                logger.warning(
+                    "No fue posible extraer secciones | "
+                    "project_gid=%s | status=%s | error=%s",
+                    project_id,
+                    exc.status_code,
+                    exc,
+                )
+                project["sections"] = []
+            except Exception:
+                logger.exception(
+                    "Error inesperado extrayendo secciones | "
+                    "project_gid=%s | nombre=%s",
+                    project_id,
+                    project_name,
+                )
+                project["sections"] = []
+
             selected_projects.append(project)
 
             logger.info(
@@ -231,6 +269,9 @@ class ProjectService:
         self,
         responsible: str | None,
     ) -> bool:
+        if settings.include_all_projects:
+            return True
+
         normalized_responsible = normalize_text(responsible)
 
         if not normalized_responsible:
@@ -248,7 +289,7 @@ class ProjectService:
     ) -> None:
         print()
         print("=" * 100)
-        print("RESUMEN DE EXTRACCIÓN Y FILTRO PMO")
+        print("RESUMEN DE EXTRACCIÓN DE PROYECTOS")
         print("=" * 100)
         print(
             f"Elementos en portafolio          : "

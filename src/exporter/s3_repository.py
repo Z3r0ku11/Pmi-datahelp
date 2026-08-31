@@ -64,6 +64,38 @@ class S3Repository:
             path,
         )
 
+    def head_object(self, object_key: str) -> int:
+        """Return the published object size and fail if it is unavailable."""
+        response = self.client.head_object(
+            Bucket=settings.s3_bucket,
+            Key=object_key,
+        )
+        size = int(response.get("ContentLength", 0))
+        if size <= 0:
+            raise ValueError(f"El objeto S3 está vacío: {object_key}")
+        return size
+
+    def write_manifest(self, object_key: str, csv_key: str) -> None:
+        """Publish a stable QuickSight S3 manifest for a CSV contract."""
+        import json
+        self.client.put_object(
+            Bucket=settings.s3_bucket,
+            Key=object_key,
+            Body=json.dumps({
+                "fileLocations": [{
+                    "URIs": [f"s3://{settings.s3_bucket}/{csv_key}"]
+                }],
+                "globalUploadSettings": {
+                    "format": "CSV",
+                    "delimiter": ",",
+                    "textqualifier": "\"",
+                    "containsHeader": "true",
+                },
+            }),
+            ServerSideEncryption="AES256",
+            ContentType="application/json",
+        )
+
     def read_json(self, object_key: str) -> dict | None:
         """Read a JSON object from S3. Returns None if not found."""
         try:

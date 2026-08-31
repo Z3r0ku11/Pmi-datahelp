@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Iterable
 
-from utils import get_custom_field_value
+from utils import get_custom_field_value, get_project_filter_dimensions
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +106,7 @@ class ProjectMetricsService:
             "project_manager",
             default="",
         )
+        dimensions = get_project_filter_dimensions(project)
 
         owner_name = self._extract_owner_name(project)
 
@@ -173,6 +174,18 @@ class ProjectMetricsService:
 
         health_status = self._classify_health(health_score)
 
+        governance_update_score = (
+            self._calculate_governance_update_score(project)
+        )
+        governance_flags = self._calculate_structure_flags(
+            project=project,
+            tasks=tasks,
+        )
+        governance_structure_score = round(
+            sum(governance_flags.values()) / 4 * 100,
+            1,
+        )
+
         project_status = self._calculate_project_status(
             completed=completed,
             archived=archived,
@@ -193,6 +206,9 @@ class ProjectMetricsService:
             "project_gid": project_gid,
             "project_name": project_name,
             "responsable_proyecto": responsible or "Sin responsable",
+            "pmo_id": dimensions["pmo_id"],
+            "project_year": dimensions["project_year"],
+            "responsable_grupo": dimensions["responsable_grupo"],
             "owner_name": owner_name or "Sin owner",
             "project_status": project_status,
             "completed": completed,
@@ -217,8 +233,146 @@ class ProjectMetricsService:
             "alert_label": alert_label,
             "health_score": health_score,
             "health_status": health_status,
+            "tasks_closed_7d": self._count_tasks_closed_recently(tasks, 30),
+            "tasks_modified_7d": self._count_tasks_modified_recently(tasks, 30),
+            "has_weekly_update": int(
+                self._has_recent_status_update(project, 30)
+            ),
+            "pm_activity_score": self._calculate_pm_activity_score(
+                tasks=tasks,
+                project=project,
+                total_tasks=total_tasks,
+                overdue_tasks=overdue_tasks,
+            ),
+            "governance_update_score": governance_update_score,
+            "has_valid_section": governance_flags["has_valid_section"],
+            "has_valid_milestone": governance_flags[
+                "has_valid_milestone"
+            ],
+            "has_valid_top_level_task": governance_flags[
+                "has_valid_top_level_task"
+            ],
+            "has_valid_subtask": governance_flags["has_valid_subtask"],
+            "governance_structure_score": governance_structure_score,
             "snapshot_date": self._today.isoformat(),
         }
+
+    @staticmethod
+    def _is_excluded_project(project: dict[str, Any]) -> bool:
+        return ProjectMetricsService._to_bool(
+            project.get("archived") or project.get("deleted")
+        )
+
+    def _calculate_governance_update_score(
+        self,
+        project: dict[str, Any],
+    ) -> float:
+        if self._is_excluded_project(project):
+            return 0.0
+
+        current_status = project.get("current_status") or {}
+        if not isinstance(current_status, dict):
+            return 0.0
+
+        status_date = self._parse_date(
+            current_status.get("created_at")
+        )
+        if status_date is None:
+            return 0.0
+
+        days_since_update = max((self._today - status_date).days, 0)
+        if days_since_update <= 7:
+            return 100.0
+        if days_since_update <= 10:
+            return 70.0
+        if days_since_update <= 14:
+            return 30.0
+        return 0.0
+
+    def _calculate_structure_flags(
+        self,
+        project: dict[str, Any],
+        tasks: list[dict[str, Any]],
+    ) -> dict[str, int]:
+        if self._is_excluded_project(project):
+            return {
+                "has_valid_section": 0,
+                "has_valid_milestone": 0,
+                "has_valid_top_level_task": 0,
+                "has_valid_subtask": 0,
+            }
+
+        sections = project.get("sections") or []
+        if not isinstance(sections, list):
+            sections = []
+        valid_sections = any(
+            self._is_valid_section(section)
+            for section in sections
+        )
+        valid_tasks = [
+            task
+            for task in tasks
+            if self._is_valid_task_record(task)
+        ]
+        valid_milestone = any(
+            self._is_milestone(task) for task in valid_tasks
+        )
+        valid_top_level_task = any(
+            self._is_top_level_task(task) for task in valid_tasks
+        )
+        valid_subtask = any(
+            self._is_subtask(task) for task in valid_tasks
+        )
+        return {
+            "has_valid_section": int(valid_sections),
+            "has_valid_milestone": int(valid_milestone),
+            "has_valid_top_level_task": int(valid_top_level_task),
+            "has_valid_subtask": int(valid_subtask),
+        }
+
+    @staticmethod
+    def _is_valid_section(section: Any) -> bool:
+        if not isinstance(section, dict):
+            return False
+        if ProjectMetricsService._to_bool(section.get("deleted")):
+            return False
+        resource_type = str(section.get("resource_type", "")).strip()
+        return bool(
+            str(section.get("gid", "")).strip()
+            and str(section.get("name", "")).strip()
+            and resource_type in ("", "section")
+        )
+
+    @staticmethod
+    def _is_valid_task_record(task: Any) -> bool:
+        if not isinstance(task, dict):
+            return False
+        if ProjectMetricsService._to_bool(task.get("deleted")):
+            return False
+        return bool(str(task.get("task_gid", "")).strip())
+
+    @staticmethod
+    def _is_milestone(task: dict[str, Any]) -> bool:
+        resource_type = str(task.get("resource_type", "")).strip()
+        resource_subtype = str(
+            task.get("resource_subtype", "")
+        ).strip()
+        return resource_type == "milestone" or resource_subtype == "milestone"
+
+    @staticmethod
+    def _is_top_level_task(task: dict[str, Any]) -> bool:
+        return (
+            task.get("record_type") == "task"
+            and not str(task.get("parent_task_gid", "")).strip()
+            and not ProjectMetricsService._is_milestone(task)
+        )
+
+    @staticmethod
+    def _is_subtask(task: dict[str, Any]) -> bool:
+        return (
+            task.get("record_type") == "subtask"
+            and bool(str(task.get("parent_task_gid", "")).strip())
+        )
 
     def _group_tasks_by_project(
         self,
@@ -420,6 +574,96 @@ class ProjectMetricsService:
             return 0.0
 
         return round((numerator / denominator) * 100, 2)
+
+    def _count_tasks_closed_recently(
+        self,
+        tasks: list[dict[str, Any]],
+        days: int,
+    ) -> int:
+        """Count tasks completed within the last N days."""
+        from datetime import timedelta
+
+        cutoff = self._today - timedelta(days=days)
+        count = 0
+        for task in tasks:
+            completed_at = self._parse_date(
+                self._get_first_value(
+                    task, "completed_at", default=None
+                )
+            )
+            if completed_at and completed_at >= cutoff:
+                count += 1
+        return count
+
+    def _count_tasks_modified_recently(
+        self,
+        tasks: list[dict[str, Any]],
+        days: int,
+    ) -> int:
+        """Count tasks modified within the last N days."""
+        from datetime import timedelta
+
+        cutoff = self._today - timedelta(days=days)
+        count = 0
+        for task in tasks:
+            modified_at = self._parse_date(
+                self._get_first_value(
+                    task, "modified_at", default=None
+                )
+            )
+            if modified_at and modified_at >= cutoff:
+                count += 1
+        return count
+
+    def _has_recent_status_update(
+        self,
+        project: dict[str, Any],
+        days: int,
+    ) -> bool:
+        """Check if the project has a status update within the last N days."""
+        from datetime import timedelta
+
+        cutoff = self._today - timedelta(days=days)
+        current_status = project.get("current_status") or {}
+        if not isinstance(current_status, dict):
+            return False
+        status_date_str = current_status.get("created_at", "")
+        status_date = self._parse_date(status_date_str)
+        return status_date is not None and status_date >= cutoff
+
+    def _calculate_pm_activity_score(
+        self,
+        tasks: list[dict[str, Any]],
+        project: dict[str, Any],
+        total_tasks: int,
+        overdue_tasks: int,
+    ) -> int:
+        """Calculate PM activity score (0-100) for this project.
+
+        Components:
+        - Status update in last 30 days: 40 points
+        - Task closure rate: 30 points (closed_30d relative to overdue+closed)
+        - Recent activity: 30 points (modified_30d / total)
+        """
+        # Status update (40 points)
+        has_update = self._has_recent_status_update(project, 30)
+        update_score = 40 if has_update else 0
+
+        # Task closure (30 points)
+        closed_30d = self._count_tasks_closed_recently(tasks, 30)
+        closure_denominator = max(closed_30d + overdue_tasks, 1)
+        closure_score = round(closed_30d / closure_denominator * 30)
+
+        # Activity (30 points)
+        modified_30d = self._count_tasks_modified_recently(tasks, 30)
+        if total_tasks > 0:
+            activity_score = round(
+                min(modified_30d / total_tasks, 1.0) * 30
+            )
+        else:
+            activity_score = 0
+
+        return min(update_score + closure_score + activity_score, 100)
 
     @staticmethod
     def _get_project_gid(project: dict[str, Any]) -> str:
