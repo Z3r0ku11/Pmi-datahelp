@@ -139,9 +139,27 @@ def build_s_curve(tasks: list[dict[str, Any]], projects: list[dict[str, Any]]) -
     project_frame["project_year"] = project_frame["Fecha Inicio del proyecto"].map(project_year)
     project_frame["responsable_grupo"] = project_frame["Responsable Proyecto"].map(responsible_group)
 
+    if "pmo_id" not in task_frame:
+        task_frame["pmo_id"] = ""
+
     frame = task_frame.merge(
-        project_frame[["PROJECT ID", "pmo_id", "project_start", "project_due", "project_year", "responsable_grupo"]],
-        left_on="project_gid", right_on="PROJECT ID", how="left",
+        project_frame[
+            [
+                "PROJECT ID",
+                "pmo_id",
+                "project_start",
+                "project_due",
+                "project_year",
+                "responsable_grupo",
+            ]
+        ].rename(columns={"pmo_id": "project_pmo_id"}),
+        left_on="project_gid",
+        right_on="PROJECT ID",
+        how="left",
+    )
+    frame["pmo_id"] = frame["project_pmo_id"].where(
+        frame["project_pmo_id"].map(_text) != "",
+        frame["pmo_id"],
     )
     valid_task_plan = frame["start_on"].notna() & frame["due_on"].notna() & (frame["due_on"] >= frame["start_on"])
     valid_project_plan = frame["project_start"].notna() & frame["project_due"].notna() & (frame["project_due"] >= frame["project_start"])
