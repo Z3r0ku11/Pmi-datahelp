@@ -185,13 +185,21 @@ Resources:
               - quicksight:ListIngestions
             Resource:
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-dataset-unificado-v1
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-dataset-unificado-v1/ingestion/*
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-financial-breakdown-v1
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-financial-breakdown-v1/ingestion/*
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-project-s-curve-dev
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-project-s-curve-dev/ingestion/*
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-project-timeline-dev
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-project-timeline-dev/ingestion/*
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-project-load-timeline-v1
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-project-load-timeline-v1/ingestion/*
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-pm-compliance-v1
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-pm-compliance-v1/ingestion/*
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/facturacion_proyectos_proximos_finalizar
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/facturacion_proyectos_proximos_finalizar/ingestion/*
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/facturacion_proyectos_proximos_finalizar_resumen
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/facturacion_proyectos_proximos_finalizar_resumen/ingestion/*
 
   ContainerRepository:
     Type: AWS::ECR::Repository
