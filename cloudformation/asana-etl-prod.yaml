@@ -27,12 +27,9 @@ Parameters:
     AllowedValues:
       - ENABLED
       - DISABLED
-  SourceRepositoryUrl:
+  SourceArtifactKey:
     Type: String
-    Default: https://github.com/Z3r0ku11/pmo-intelligence-platform.git
-  SourceVersion:
-    Type: String
-    Default: feature/checklist-risks-admin-v1.9
+    Default: build/asana-etl/e3e5f40.zip
 
 Resources:
   ProdVpc:
@@ -472,6 +469,10 @@ Resources:
                   - ecr:StartImageScan
                   - ecr:UploadLayerPart
                 Resource: !GetAtt ContainerRepository.Arn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub arn:${AWS::Partition}:s3:::${DataBucketName}/${SourceArtifactKey}
 
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
@@ -480,16 +481,14 @@ Resources:
       Description: Builds the production ETL image inside AWS and publishes it to ECR.
       ServiceRole: !GetAtt CodeBuildRole.Arn
       Source:
-        Type: GITHUB
-        Location: !Ref SourceRepositoryUrl
-        GitCloneDepth: 1
-        InsecureSsl: false
+        Type: S3
+        Location: !Sub ${DataBucketName}/${SourceArtifactKey}
         BuildSpec: |
           version: 0.2
           phases:
             pre_build:
               commands:
-                - export IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION}"
+                - export IMAGE_TAG="${IMAGE_TAG}"
                 - export IMAGE_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/pmo-ip/asana-exporter-prod:${IMAGE_TAG}"
                 - aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
             build:
@@ -499,7 +498,6 @@ Resources:
               commands:
                 - docker push "${IMAGE_URI}"
                 - aws ecr start-image-scan --repository-name pmo-ip/asana-exporter-prod --image-id "imageTag=${IMAGE_TAG}" || true
-      SourceVersion: !Ref SourceVersion
       Artifacts:
         Type: NO_ARTIFACTS
       Environment:
@@ -512,6 +510,8 @@ Resources:
             Value: !Ref AWS::AccountId
           - Name: AWS_DEFAULT_REGION
             Value: !Ref AWS::Region
+          - Name: IMAGE_TAG
+            Value: !Ref ContainerImageTag
       LogsConfig:
         CloudWatchLogs:
           Status: DISABLED
