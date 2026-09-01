@@ -323,7 +323,7 @@ def build_project_records(
                 current_status.get("created_at") or ""
             ),
             "DATA REFRESH": data_refresh,
-            "update Asana": data_refresh,
+            "update Asana": project.get("modified_at") or "",
         }
 
         for field_name in PROJECT_CUSTOM_FIELDS:
