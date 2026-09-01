@@ -176,6 +176,8 @@ class Settings:
         "QUICKSIGHT_DATASET_IDS",
         (
             "pmo-dataset-unificado-v1",
+            "fb3c5655-2db9-4180-9a0a-63cab3a4fb51",
+            "aff40eb2-5662-4b7d-bf3a-7c1f4644104c",
             "pmo-financial-breakdown-v1",
             "pmo-project-s-curve-dev",
             "pmo-project-timeline-dev",

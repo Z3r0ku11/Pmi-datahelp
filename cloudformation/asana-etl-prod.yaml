@@ -186,6 +186,10 @@ Resources:
             Resource:
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-dataset-unificado-v1
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-dataset-unificado-v1/ingestion/*
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/fb3c5655-2db9-4180-9a0a-63cab3a4fb51
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/fb3c5655-2db9-4180-9a0a-63cab3a4fb51/ingestion/*
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/aff40eb2-5662-4b7d-bf3a-7c1f4644104c
+              - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/aff40eb2-5662-4b7d-bf3a-7c1f4644104c/ingestion/*
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-financial-breakdown-v1
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-financial-breakdown-v1/ingestion/*
               - !Sub arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:dataset/pmo-project-s-curve-dev
@@ -316,7 +320,7 @@ Resources:
             - Name: QUICKSIGHT_INGESTION_ENABLED
               Value: "true"
             - Name: QUICKSIGHT_DATASET_IDS
-              Value: pmo-dataset-unificado-v1,pmo-financial-breakdown-v1,pmo-project-s-curve-dev,pmo-project-timeline-dev,pmo-project-load-timeline-v1,pmo-pm-compliance-v1,facturacion_proyectos_proximos_finalizar,facturacion_proyectos_proximos_finalizar_resumen
+              Value: pmo-dataset-unificado-v1,fb3c5655-2db9-4180-9a0a-63cab3a4fb51,aff40eb2-5662-4b7d-bf3a-7c1f4644104c,pmo-financial-breakdown-v1,pmo-project-s-curve-dev,pmo-project-timeline-dev,pmo-project-load-timeline-v1,pmo-pm-compliance-v1,facturacion_proyectos_proximos_finalizar,facturacion_proyectos_proximos_finalizar_resumen
             - Name: OUTPUT_DIRECTORY
               Value: /tmp/pmo-export
       Tags:
