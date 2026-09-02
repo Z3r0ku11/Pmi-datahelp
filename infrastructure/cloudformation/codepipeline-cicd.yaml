@@ -1,0 +1,585 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'PMI-DataHelp CodePipeline CI/CD Infrastructure'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+  
+  ProjectName:
+    Type: String
+    Default: pmi-datahelp
+    Description: Project name for resource naming
+  
+  GitHubOwner:
+    Type: String
+    Description: GitHub repository owner
+  
+  GitHubRepo:
+    Type: String
+    Default: pmo-asana-analytics
+    Description: GitHub repository name
+  
+  GitHubBranch:
+    Type: String
+    Default: main
+    Description: GitHub branch to track
+  
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Description: GitHub personal access token for repository access
+  
+  MainStackName:
+    Type: String
+    Description: Name of the main infrastructure stack
+
+Mappings:
+  EnvironmentMap:
+    dev:
+      BuildComputeType: BUILD_GENERAL1_SMALL
+      BuildImage: aws/codebuild/standard:7.0
+      NotificationLevel: ERROR
+    staging:
+      BuildComputeType: BUILD_GENERAL1_MEDIUM
+      BuildImage: aws/codebuild/standard:7.0
+      NotificationLevel: WARNING
+    prod:
+      BuildComputeType: BUILD_GENERAL1_LARGE
+      BuildImage: aws/codebuild/standard:7.0
+      NotificationLevel: INFO
+
+Resources:
+  # S3 Bucket for CodePipeline Artifacts
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-pipeline-artifacts-${Environment}-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+            NoncurrentVersionExpirationInDays: 7
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      EncryptionConfiguration:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # IAM Role for CodePipeline
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-codepipeline-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCodePipelineFullAccess
+      Policies:
+        - PolicyName: PipelineExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketVersioning
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                Resource:
+                  - !Sub '${ArtifactsBucket}/*'
+                  - !GetAtt ArtifactsBucket.Arn
+              - Effect: Allow
+                Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                Resource:
+                  - !GetAtt TestBuildProject.Arn
+                  - !GetAtt Phase1BuildProject.Arn
+                  - !GetAtt Phase2BuildProject.Arn
+                  - !GetAtt DeployProject.Arn
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:SetStackPolicy
+                  - cloudformation:ValidateTemplate
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt CodeBuildServiceRole.Arn
+
+  # IAM Role for CodeBuild
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-codebuild-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCodeBuildDeveloperAccess
+      Policies:
+        - PolicyName: BuildExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-*'
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketVersioning
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub '${ArtifactsBucket}/*'
+                  - !GetAtt ArtifactsBucket.Arn
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub
+                    - '${Phase1BucketArn}/*'
+                    - Phase1BucketArn: !Sub 'arn:aws:s3:::${MainStackName}-Phase1WebBucket'
+                  - !Sub
+                    - '${Phase1BucketArn}'
+                    - Phase1BucketArn: !Sub 'arn:aws:s3:::${MainStackName}-Phase1WebBucket'
+                  - !Sub
+                    - '${Phase2BucketArn}/*'
+                    - Phase2BucketArn: !Sub 'arn:aws:s3:::${MainStackName}-Phase2WebBucket'
+                  - !Sub
+                    - '${Phase2BucketArn}'
+                    - Phase2BucketArn: !Sub 'arn:aws:s3:::${MainStackName}-Phase2WebBucket'
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                  - cloudfront:GetDistribution
+                  - cloudfront:GetDistributionConfig
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:GetParametersByPath
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ProjectName}/*'
+
+  # CodeBuild Project for Testing
+  TestBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-test-${Environment}'
+      Description: Run tests and linting for PMI-DataHelp
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: !FindInMap [EnvironmentMap, !Ref Environment, BuildComputeType]
+        Image: !FindInMap [EnvironmentMap, !Ref Environment, BuildImage]
+        EnvironmentVariables:
+          - Name: NODE_ENV
+            Value: test
+          - Name: ENVIRONMENT
+            Value: !Ref Environment
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo "Installing dependencies..."
+                - node --version
+                - npm --version
+                - npm ci --silent
+            build:
+              commands:
+                - echo "Running tests and linting..."
+                - npm run lint
+                - npm run test
+                - echo "Running security audit..."
+                - npm audit --audit-level=high
+                - echo "Validating TypeScript compilation..."
+                - npm run build
+            post_build:
+              commands:
+                - echo "Tests completed successfully"
+          artifacts:
+            files:
+              - '**/*'
+      TimeoutInMinutes: 15
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CodeBuild Project for Phase 1 Build
+  Phase1BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-phase1-build-${Environment}'
+      Description: Build Phase 1 (Educational Portal) for PMI-DataHelp
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: !FindInMap [EnvironmentMap, !Ref Environment, BuildComputeType]
+        Image: !FindInMap [EnvironmentMap, !Ref Environment, BuildImage]
+        EnvironmentVariables:
+          - Name: NODE_ENV
+            Value: production
+          - Name: ENVIRONMENT
+            Value: !Ref Environment
+          - Name: VITE_APP_VERSION
+            Value: '2.0.0'
+          - Name: VITE_APP_ENVIRONMENT
+            Value: !Ref Environment
+          - Name: VITE_PHASE
+            Value: '1'
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo "Installing dependencies for Phase 1 build..."
+                - npm ci --silent
+                - echo "Setting up environment variables..."
+                - export VITE_API_URL=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/api-url" --query 'Parameter.Value' --output text)
+                - export VITE_COGNITO_USER_POOL_ID=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/cognito-user-pool-id" --query 'Parameter.Value' --output text)
+                - export VITE_COGNITO_CLIENT_ID=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/cognito-phase1-client-id" --query 'Parameter.Value' --output text)
+                - export VITE_COGNITO_REGION=${AWS_DEFAULT_REGION}
+            build:
+              commands:
+                - echo "Building Phase 1 (Educational Portal)..."
+                - npm run build:phase1
+            post_build:
+              commands:
+                - echo "Phase 1 build completed"
+                - ls -la dist/phase1/
+          artifacts:
+            files:
+              - 'dist/phase1/**/*'
+            base-directory: '.'
+      TimeoutInMinutes: 20
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Phase
+          Value: '1'
+
+  # CodeBuild Project for Phase 2 Build
+  Phase2BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-phase2-build-${Environment}'
+      Description: Build Phase 2 (Corporate PMO Dashboard) for PMI-DataHelp
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: !FindInMap [EnvironmentMap, !Ref Environment, BuildComputeType]
+        Image: !FindInMap [EnvironmentMap, !Ref Environment, BuildImage]
+        EnvironmentVariables:
+          - Name: NODE_ENV
+            Value: production
+          - Name: ENVIRONMENT
+            Value: !Ref Environment
+          - Name: VITE_APP_VERSION
+            Value: '2.0.0'
+          - Name: VITE_APP_ENVIRONMENT
+            Value: !Ref Environment
+          - Name: VITE_PHASE
+            Value: '2'
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo "Installing dependencies for Phase 2 build..."
+                - npm ci --silent
+                - echo "Setting up environment variables..."
+                - export VITE_API_URL=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/api-url" --query 'Parameter.Value' --output text)
+                - export VITE_COGNITO_USER_POOL_ID=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/cognito-user-pool-id" --query 'Parameter.Value' --output text)
+                - export VITE_COGNITO_CLIENT_ID=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/cognito-phase2-client-id" --query 'Parameter.Value' --output text)
+                - export VITE_COGNITO_REGION=${AWS_DEFAULT_REGION}
+            build:
+              commands:
+                - echo "Building Phase 2 (Corporate PMO Dashboard)..."
+                - npm run build:phase2
+            post_build:
+              commands:
+                - echo "Phase 2 build completed"
+                - ls -la dist/phase2/
+          artifacts:
+            files:
+              - 'dist/phase2/**/*'
+            base-directory: '.'
+      TimeoutInMinutes: 20
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Phase
+          Value: '2'
+
+  # CodeBuild Project for Deployment
+  DeployProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-deploy-${Environment}'
+      Description: Deploy PMI-DataHelp to S3 and invalidate CloudFront
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: !FindInMap [EnvironmentMap, !Ref Environment, BuildComputeType]
+        Image: !FindInMap [EnvironmentMap, !Ref Environment, BuildImage]
+        EnvironmentVariables:
+          - Name: ENVIRONMENT
+            Value: !Ref Environment
+          - Name: PROJECT_NAME
+            Value: !Ref ProjectName
+          - Name: MAIN_STACK_NAME
+            Value: !Ref MainStackName
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo "Preparing deployment..."
+                - aws --version
+                - echo "Getting deployment configuration..."
+                - export PHASE1_BUCKET=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/phase1-bucket" --query 'Parameter.Value' --output text)
+                - export PHASE2_BUCKET=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/phase2-bucket" --query 'Parameter.Value' --output text)
+                - export PHASE1_DISTRIBUTION_ID=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/phase1-distribution-id" --query 'Parameter.Value' --output text)
+                - export PHASE2_DISTRIBUTION_ID=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/phase2-distribution-id" --query 'Parameter.Value' --output text)
+            build:
+              commands:
+                - echo "Deploying Phase 1 to S3..."
+                - aws s3 sync dist/phase1/ s3://${PHASE1_BUCKET} --delete --cache-control "public,max-age=31536000" --exclude "*.html"
+                - aws s3 sync dist/phase1/ s3://${PHASE1_BUCKET} --cache-control "no-cache" --include "*.html"
+                - echo "Deploying Phase 2 to S3..."
+                - aws s3 sync dist/phase2/ s3://${PHASE2_BUCKET} --delete --cache-control "public,max-age=31536000" --exclude "*.html"
+                - aws s3 sync dist/phase2/ s3://${PHASE2_BUCKET} --cache-control "no-cache" --include "*.html"
+            post_build:
+              commands:
+                - echo "Creating CloudFront invalidations..."
+                - aws cloudfront create-invalidation --distribution-id ${PHASE1_DISTRIBUTION_ID} --paths "/*"
+                - aws cloudfront create-invalidation --distribution-id ${PHASE2_DISTRIBUTION_ID} --paths "/*"
+                - echo "Deployment completed successfully"
+                - echo "Phase 1 URL: https://$(aws cloudfront get-distribution --id ${PHASE1_DISTRIBUTION_ID} --query 'Distribution.DomainName' --output text)"
+                - echo "Phase 2 URL: https://$(aws cloudfront get-distribution --id ${PHASE2_DISTRIBUTION_ID} --query 'Distribution.DomainName' --output text)"
+      TimeoutInMinutes: 15
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CodePipeline
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-pipeline-${Environment}'
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactsBucket
+      Stages:
+        # Source Stage
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: '1'
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubToken
+                PollForSourceChanges: true
+              OutputArtifacts:
+                - Name: SourceOutput
+
+        # Test Stage
+        - Name: Test
+          Actions:
+            - Name: TestAction
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref TestBuildProject
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: TestOutput
+
+        # Build Stage
+        - Name: Build
+          Actions:
+            - Name: BuildPhase1
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref Phase1BuildProject
+              InputArtifacts:
+                - Name: TestOutput
+              OutputArtifacts:
+                - Name: Phase1Output
+              RunOrder: 1
+            - Name: BuildPhase2
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref Phase2BuildProject
+              InputArtifacts:
+                - Name: TestOutput
+              OutputArtifacts:
+                - Name: Phase2Output
+              RunOrder: 1
+
+        # Deploy Stage
+        - Name: Deploy
+          Actions:
+            - Name: DeployAction
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref DeployProject
+                PrimarySource: Phase1Output
+              InputArtifacts:
+                - Name: Phase1Output
+                - Name: Phase2Output
+              RunOrder: 1
+
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudWatch Event Rule for Pipeline State Changes
+  PipelineEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-pipeline-events-${Environment}'
+      Description: Capture pipeline state changes
+      EventPattern:
+        source:
+          - aws.codepipeline
+        detail-type:
+          - CodePipeline Pipeline Execution State Change
+          - CodePipeline Stage Execution State Change
+        detail:
+          pipeline:
+            - !Ref Pipeline
+      State: ENABLED
+      Targets:
+        - Arn: !Ref PipelineNotificationTopic
+          Id: PipelineNotificationTarget
+
+  # SNS Topic for Notifications
+  PipelineNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-pipeline-notifications-${Environment}'
+      DisplayName: !Sub 'PMI-DataHelp Pipeline Notifications (${Environment})'
+
+Outputs:
+  PipelineName:
+    Description: Name of the CodePipeline
+    Value: !Ref Pipeline
+    Export:
+      Name: !Sub '${AWS::StackName}-PipelineName'
+
+  PipelineUrl:
+    Description: URL of the CodePipeline
+    Value: !Sub 'https://console.aws.amazon.com/codesuite/codepipeline/pipelines/${Pipeline}/view'
+    Export:
+      Name: !Sub '${AWS::StackName}-PipelineUrl'
+
+  ArtifactsBucketName:
+    Description: Name of the artifacts bucket
+    Value: !Ref ArtifactsBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-ArtifactsBucket'
+
+  PipelineNotificationTopicArn:
+    Description: ARN of the pipeline notification topic
+    Value: !Ref PipelineNotificationTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-NotificationTopic'

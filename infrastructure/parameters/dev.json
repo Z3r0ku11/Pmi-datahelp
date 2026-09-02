@@ -1,0 +1,24 @@
+{
+  "Parameters": {
+    "Environment": "dev",
+    "ProjectName": "pmi-datahelp",
+    "DomainName": "pmi-datahelp-dev.com",
+    "AdminEmail": "admin@pmi-datahelp-dev.com"
+  },
+  "Tags": {
+    "Environment": "dev",
+    "Project": "pmi-datahelp",
+    "Owner": "DevOps Team",
+    "CostCenter": "Development",
+    "Purpose": "Development and testing"
+  },
+  "Notes": {
+    "Description": "Development environment configuration for PMI-DataHelp",
+    "Features": {
+      "MFA": "Optional",
+      "SelfSignUp": "Enabled", 
+      "LogRetention": "7 days",
+      "Caching": "Disabled"
+    }
+  }
+}
