@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* MorrisFlow Global Styles */
+
+@layer base {
+  * {
+    @apply border-morris-gray-200;
+  }
+  
+  html {
+    @apply scroll-smooth;
+  }
+  
+  body {
+    @apply bg-morris-gray-50 text-morris-gray-900 leading-relaxed;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-semibold text-morris-gray-900;
+  }
+  
+  h1 { @apply text-4xl lg:text-5xl; }
+  h2 { @apply text-3xl lg:text-4xl; }
+  h3 { @apply text-2xl lg:text-3xl; }
+  h4 { @apply text-xl lg:text-2xl; }
+  h5 { @apply text-lg lg:text-xl; }
+  h6 { @apply text-base lg:text-lg; }
+}
+
+@layer components {
+  /* Morris Framework Components */
+  .morris-card {
+    @apply bg-white rounded-xl border border-morris-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+  
+  .morris-button {
+    @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg transition-colors duration-200;
+  }
+  
+  .morris-button-primary {
+    @apply morris-button bg-morris-primary text-white hover:bg-morris-light focus:ring-2 focus:ring-morris-primary focus:ring-offset-2;
+  }
+  
+  .morris-button-secondary {
+    @apply morris-button bg-morris-secondary text-white hover:bg-morris-success focus:ring-2 focus:ring-morris-secondary focus:ring-offset-2;
+  }
+  
+  .morris-button-outline {
+    @apply morris-button border-morris-gray-300 text-morris-gray-700 bg-white hover:bg-morris-gray-50;
+  }
+  
+  .morris-input {
+    @apply block w-full px-3 py-2 border border-morris-gray-300 rounded-md placeholder-morris-gray-400 focus:outline-none focus:ring-2 focus:ring-morris-primary focus:border-morris-primary;
+  }
+  
+  .morris-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .morris-badge-primary {
+    @apply morris-badge bg-morris-primary/10 text-morris-primary;
+  }
+  
+  .morris-badge-success {
+    @apply morris-badge bg-morris-success/10 text-morris-success;
+  }
+  
+  .morris-badge-warning {
+    @apply morris-badge bg-morris-warning/10 text-morris-warning;
+  }
+  
+  .morris-badge-error {
+    @apply morris-badge bg-morris-error/10 text-morris-error;
+  }
+  
+  /* Workflow Phase Styles */
+  .phase-intake { @apply border-l-4 border-workflow-intake; }
+  .phase-handover { @apply border-l-4 border-workflow-handover; }
+  .phase-planning { @apply border-l-4 border-workflow-planning; }
+  .phase-execution { @apply border-l-4 border-workflow-execution; }
+  .phase-validation { @apply border-l-4 border-workflow-validation; }
+  .phase-closure { @apply border-l-4 border-workflow-closure; }
+  
+  /* Navigation */
+  .morris-nav-link {
+    @apply flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150;
+  }
+  
+  .morris-nav-link-active {
+    @apply morris-nav-link bg-morris-primary text-white;
+  }
+  
+  .morris-nav-link-inactive {
+    @apply morris-nav-link text-morris-gray-600 hover:text-morris-gray-900 hover:bg-morris-gray-100;
+  }
+  
+  /* Loading States */
+  .morris-loading {
+    @apply animate-pulse;
+  }
+  
+  .morris-skeleton {
+    @apply bg-morris-gray-200 rounded morris-loading;
+  }
+}
+
+@layer utilities {
+  /* Morris Framework Utilities */
+  .workflow-gradient {
+    background: linear-gradient(90deg, 
+      theme('colors.workflow.intake') 0%, 
+      theme('colors.workflow.handover') 20%, 
+      theme('colors.workflow.planning') 40%, 
+      theme('colors.workflow.execution') 60%, 
+      theme('colors.workflow.validation') 80%, 
+      theme('colors.workflow.closure') 100%
+    );
+  }
+  
+  .text-gradient-morris {
+    @apply bg-gradient-morris bg-clip-text text-transparent;
+  }
+  
+  .shadow-morris {
+    box-shadow: 0 4px 6px -1px rgba(30, 64, 175, 0.1), 0 2px 4px -1px rgba(30, 64, 175, 0.06);
+  }
+  
+  /* Scrollbar Styling */
+  .morris-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .morris-scrollbar::-webkit-scrollbar-track {
+    @apply bg-morris-gray-100;
+  }
+  
+  .morris-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-morris-gray-300 rounded-full;
+  }
+  
+  .morris-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-morris-gray-400;
+  }
+}

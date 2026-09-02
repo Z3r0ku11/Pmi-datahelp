@@ -1,0 +1,65 @@
+version: 0.2
+
+# PMI-DataHelp CodeBuild Buildspec
+# This is the main buildspec file for the CodePipeline integration
+# Individual build projects have their own inline buildspecs in the CloudFormation template
+
+env:
+  variables:
+    NODE_ENV: production
+    VITE_APP_VERSION: "2.0.0"
+  parameter-store:
+    VITE_API_URL: "/pmi-datahelp/prod/api-url"
+    VITE_COGNITO_USER_POOL_ID: "/pmi-datahelp/prod/cognito-user-pool-id"
+    VITE_COGNITO_REGION: "/pmi-datahelp/prod/cognito-region"
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+    commands:
+      - echo "Build started on `date`"
+      - echo "Node version:" 
+      - node --version
+      - echo "NPM version:"
+      - npm --version
+
+  pre_build:
+    commands:
+      - echo "Installing dependencies..."
+      - npm ci --silent --no-optional
+      - echo "Running pre-build checks..."
+      - npm run lint
+      - npm audit --audit-level=high
+
+  build:
+    commands:
+      - echo "Building application..."
+      - echo "Environment variables:"
+      - echo "VITE_APP_VERSION=$VITE_APP_VERSION"
+      - echo "VITE_API_URL=$VITE_API_URL"
+      - echo "NODE_ENV=$NODE_ENV"
+      - echo "Building Phase 1..."
+      - npm run build:phase1
+      - echo "Building Phase 2..."
+      - npm run build:phase2
+      - echo "Running tests..."
+      - npm run test
+
+  post_build:
+    commands:
+      - echo "Build completed on `date`"
+      - echo "Listing build artifacts..."
+      - ls -la dist/
+      - ls -la dist/phase1/ || echo "Phase 1 build not found"
+      - ls -la dist/phase2/ || echo "Phase 2 build not found"
+
+artifacts:
+  files:
+    - '**/*'
+  base-directory: dist
+
+cache:
+  paths:
+    - node_modules/**/*
+    - ~/.npm/**/*

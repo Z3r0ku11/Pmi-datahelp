@@ -1,0 +1,398 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'PMI-DataHelp Dual-Phase Infrastructure - Main Stack'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+  
+  DomainName:
+    Type: String
+    Default: pmi-datahelp.com
+    Description: Domain name for the application
+  
+  CertificateArn:
+    Type: String
+    Description: SSL Certificate ARN for CloudFront (must be in us-east-1)
+  
+  ProjectName:
+    Type: String
+    Default: pmi-datahelp
+    Description: Project name for resource naming
+
+Mappings:
+  EnvironmentMap:
+    dev:
+      BucketPrefix: dev
+      CachingEnabled: false
+      LogRetention: 7
+    staging:
+      BucketPrefix: staging
+      CachingEnabled: true
+      LogRetention: 30
+    prod:
+      BucketPrefix: prod
+      CachingEnabled: true
+      LogRetention: 90
+
+Resources:
+  # S3 Buckets
+  Phase1WebBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-phase1-${Environment}-${AWS::AccountId}'
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - GET
+              - HEAD
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3000
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Phase
+          Value: '1'
+
+  Phase1WebBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Phase1WebBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action:
+              - s3:GetObject
+            Resource: !Sub '${Phase1WebBucket}/*'
+
+  Phase2WebBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-phase2-${Environment}-${AWS::AccountId}'
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - GET
+              - HEAD
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3000
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Phase
+          Value: '2'
+
+  Phase2WebBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Phase2WebBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action:
+              - s3:GetObject
+            Resource: !Sub '${Phase2WebBucket}/*'
+
+  # Content Storage Bucket (Private)
+  ContentBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-content-${Environment}-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      EncryptionConfiguration:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 90
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Type
+          Value: 'content'
+
+  # CloudFront Origin Access Control
+  Phase1OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${ProjectName}-phase1-${Environment}-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  Phase2OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${ProjectName}-phase2-${Environment}-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # CloudFront Distributions
+  Phase1CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !If [IsProd, !Ref DomainName, !Sub '${Environment}.${DomainName}']
+          - !If [IsProd, !Sub 'edu.${DomainName}', !Sub 'edu.${Environment}.${DomainName}']
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt Phase1WebBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !GetAtt Phase1OriginAccessControl.Id
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
+          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf # CORSOriginRequestPolicy
+          ResponseHeadersPolicyId: 5cc3b908-e619-4b99-88e5-2cf7f45965bd # SecurityHeadersPolicy
+          Compress: true
+        CacheBehaviors:
+          - PathPattern: '/api/*'
+            TargetOriginId: S3Origin
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # CachingDisabled
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - PATCH
+              - DELETE
+            Compress: false
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        Enabled: true
+        DefaultRootObject: index.html
+        HttpVersion: http2
+        IPV6Enabled: true
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+        Logging:
+          Bucket: !GetAtt LoggingBucket.DomainName
+          IncludeCookies: false
+          Prefix: !Sub 'cloudfront/phase1/${Environment}/'
+        PriceClass: PriceClass_100
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Phase
+          Value: '1'
+
+  Phase2CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !If [IsProd, !Sub 'pmo.${DomainName}', !Sub 'pmo.${Environment}.${DomainName}']
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt Phase2WebBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !GetAtt Phase2OriginAccessControl.Id
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
+          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf # CORSOriginRequestPolicy
+          ResponseHeadersPolicyId: 5cc3b908-e619-4b99-88e5-2cf7f45965bd # SecurityHeadersPolicy
+          Compress: true
+        CacheBehaviors:
+          - PathPattern: '/api/*'
+            TargetOriginId: S3Origin
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # CachingDisabled
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - PATCH
+              - DELETE
+            Compress: false
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        Enabled: true
+        DefaultRootObject: index.html
+        HttpVersion: http2
+        IPV6Enabled: true
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+        Logging:
+          Bucket: !GetAtt LoggingBucket.DomainName
+          IncludeCookies: false
+          Prefix: !Sub 'cloudfront/phase2/${Environment}/'
+        PriceClass: PriceClass_100
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Phase
+          Value: '2'
+
+  # Logging Bucket
+  LoggingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-logs-${Environment}-${AWS::AccountId}'
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldLogs
+            Status: Enabled
+            ExpirationInDays: !FindInMap [EnvironmentMap, !Ref Environment, LogRetention]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Type
+          Value: 'logs'
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+
+Outputs:
+  Phase1WebBucketName:
+    Description: Name of the Phase 1 web bucket
+    Value: !Ref Phase1WebBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-Phase1WebBucket'
+
+  Phase2WebBucketName:
+    Description: Name of the Phase 2 web bucket
+    Value: !Ref Phase2WebBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-Phase2WebBucket'
+
+  ContentBucketName:
+    Description: Name of the content bucket
+    Value: !Ref ContentBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-ContentBucket'
+
+  Phase1CloudFrontDistributionId:
+    Description: CloudFront Distribution ID for Phase 1
+    Value: !Ref Phase1CloudFrontDistribution
+    Export:
+      Name: !Sub '${AWS::StackName}-Phase1CloudFrontDistributionId'
+
+  Phase1CloudFrontDomainName:
+    Description: CloudFront Distribution Domain Name for Phase 1
+    Value: !GetAtt Phase1CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub '${AWS::StackName}-Phase1CloudFrontDomainName'
+
+  Phase2CloudFrontDistributionId:
+    Description: CloudFront Distribution ID for Phase 2
+    Value: !Ref Phase2CloudFrontDistribution
+    Export:
+      Name: !Sub '${AWS::StackName}-Phase2CloudFrontDistributionId'
+
+  Phase2CloudFrontDomainName:
+    Description: CloudFront Distribution Domain Name for Phase 2
+    Value: !GetAtt Phase2CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub '${AWS::StackName}-Phase2CloudFrontDomainName'
+
+  Phase1WebsiteURL:
+    Description: URL for Phase 1 (Educational Portal)
+    Value: !Sub 'https://${Phase1CloudFrontDistribution.DomainName}'
+    Export:
+      Name: !Sub '${AWS::StackName}-Phase1WebsiteURL'
+
+  Phase2WebsiteURL:
+    Description: URL for Phase 2 (Corporate PMO Dashboard)
+    Value: !Sub 'https://${Phase2CloudFrontDistribution.DomainName}'
+    Export:
+      Name: !Sub '${AWS::StackName}-Phase2WebsiteURL'

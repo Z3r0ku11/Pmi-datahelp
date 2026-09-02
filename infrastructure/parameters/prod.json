@@ -1,0 +1,34 @@
+{
+  "Parameters": {
+    "Environment": "prod",
+    "ProjectName": "pmi-datahelp",
+    "DomainName": "pmi-datahelp.com",
+    "AdminEmail": "admin@pmi-datahelp.com"
+  },
+  "Tags": {
+    "Environment": "prod",
+    "Project": "pmi-datahelp",
+    "Owner": "PMO Team",
+    "CostCenter": "Production",
+    "Purpose": "Production application serving Phase 1 (Educational) and Phase 2 (Corporate PMO)"
+  },
+  "Notes": {
+    "Description": "Production environment configuration for PMI-DataHelp",
+    "Features": {
+      "MFA": "Required",
+      "SelfSignUp": "Disabled for Phase 2", 
+      "LogRetention": "90 days",
+      "Caching": "Enabled",
+      "Security": "Enhanced"
+    },
+    "Domains": {
+      "Phase1": ["pmi-datahelp.com", "edu.pmi-datahelp.com"],
+      "Phase2": ["pmo.pmi-datahelp.com"]
+    },
+    "Compliance": {
+      "DataRetention": "As per corporate policy",
+      "Encryption": "AES256 for S3, TLS 1.2+ for CloudFront",
+      "BackupRetention": "90 days"
+    }
+  }
+}
