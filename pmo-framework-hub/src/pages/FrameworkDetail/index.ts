@@ -1,0 +1,1 @@
+export { FrameworkDetail } from './FrameworkDetail';

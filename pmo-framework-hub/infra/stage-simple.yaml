@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'PMO Framework Hub - Stage Environment (Simple)'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'pmo-framework-hub'
+
+Resources:
+  # S3 Bucket for Stage Portal
+  StagePortalBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-stage-portal-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # CloudFront Distribution
+  StageCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub '${ProjectName} Stage Portal'
+        DefaultCacheBehavior:
+          TargetOriginId: 's3-origin'
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+        Origins:
+          - Id: 's3-origin'
+            DomainName: !GetAtt StagePortalBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        Enabled: true
+        DefaultRootObject: index.html
+
+Outputs:
+  BucketName:
+    Value: !Ref StagePortalBucket
+  DistributionId:
+    Value: !Ref StageCloudFrontDistribution
+  URL:
+    Value: !Sub 'https://${StageCloudFrontDistribution.DomainName}'

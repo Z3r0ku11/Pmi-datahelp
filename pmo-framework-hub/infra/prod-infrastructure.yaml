@@ -1,0 +1,266 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'PMO Framework Hub - Production Environment Infrastructure'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'pmo-framework-hub'
+    Description: 'Project name for resource naming'
+  
+  Environment:
+    Type: String
+    Default: 'prod'
+    Description: 'Environment name'
+
+Resources:
+  # S3 Bucket for Production Portal (Private)
+  ProdPortalBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-${Environment}-portal-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      NotificationConfiguration:
+        CloudWatchConfigurations: []
+      
+  # CloudFront Origin Access Control
+  ProdOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${ProjectName}-${Environment}-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # CloudFront Distribution for Production
+  ProdCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub '${ProjectName} ${Environment} Portal Distribution'
+        DefaultCacheBehavior:
+          TargetOriginId: !Sub '${ProjectName}-${Environment}-s3-origin'
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
+          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # Managed-CORS-S3Origin
+          Compress: true
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+        CacheBehaviors:
+          # No cache for index.html
+          - PathPattern: '/index.html'
+            TargetOriginId: !Sub '${ProjectName}-${Environment}-s3-origin'
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # Managed-CachingDisabled
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # Managed-CORS-S3Origin
+            Compress: true
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            CachedMethods:
+              - GET
+              - HEAD
+          # Long cache for assets
+          - PathPattern: '/assets/*'
+            TargetOriginId: !Sub '${ProjectName}-${Environment}-s3-origin'
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # Managed-CORS-S3Origin
+            Compress: true
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachedMethods:
+              - GET
+              - HEAD
+        Origins:
+          - Id: !Sub '${ProjectName}-${Environment}-s3-origin'
+            DomainName: !GetAtt ProdPortalBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !GetAtt ProdOriginAccessControl.Id
+        Enabled: true
+        DefaultRootObject: index.html
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 300
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 300
+        PriceClass: PriceClass_All
+        HttpVersion: http2
+        IPV6Enabled: true
+
+  # S3 Bucket Policy for CloudFront OAC
+  ProdPortalBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ProdPortalBucket
+      PolicyDocument:
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipal
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${ProdPortalBucket}/*'
+            Condition:
+              StringEquals:
+                'AWS:SourceArn': !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${ProdCloudFrontDistribution}'
+
+  # Cognito User Pool for Production Admin
+  ProdCognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${ProjectName}-${Environment}-admin-pool'
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+        InviteMessageAction: SUPPRESS
+        TemporaryPasswordValidityDays: 7
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 7
+      MfaConfiguration: OPTIONAL
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: false
+        - Name: name
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      UserAttributeUpdateSettings:
+        AttributesRequireVerificationBeforeUpdate:
+          - email
+
+  # Cognito User Pool Client for Production Admin
+  ProdCognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref ProdCognitoUserPool
+      ClientName: !Sub '${ProjectName}-${Environment}-admin-client'
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
+      RefreshTokenValidityUnits:
+        RefreshToken: days
+      AccessTokenValidityUnits:
+        AccessToken: hours
+      IdTokenValidityUnits:
+        IdToken: hours
+      RefreshTokenValidity: 30
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+
+  # Cognito User Pool Group - Site Admins
+  ProdSiteAdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: SITE_ADMIN
+      Description: 'Site administrators with full access to admin panel'
+      UserPoolId: !Ref ProdCognitoUserPool
+      Precedence: 1
+
+  # Lambda Execution Role for Admin API
+  ProdAdminLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-admin-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3AdminAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt ProdPortalBucket.Arn
+                  - !Sub '${ProdPortalBucket}/*'
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                Resource: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${ProdCloudFrontDistribution}'
+
+Outputs:
+  ProdPortalBucket:
+    Description: 'Production Portal S3 Bucket Name'
+    Value: !Ref ProdPortalBucket
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-bucket'
+
+  ProdCloudFrontDistribution:
+    Description: 'Production CloudFront Distribution ID'
+    Value: !Ref ProdCloudFrontDistribution
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-distribution-id'
+
+  ProdPortalURL:
+    Description: 'Production Portal CloudFront URL'
+    Value: !Sub 'https://${ProdCloudFrontDistribution.DomainName}'
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-url'
+
+  ProdCognitoUserPoolId:
+    Description: 'Production Cognito User Pool ID'
+    Value: !Ref ProdCognitoUserPool
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-user-pool-id'
+
+  ProdCognitoClientId:
+    Description: 'Production Cognito User Pool Client ID'
+    Value: !Ref ProdCognitoUserPoolClient
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-client-id'
+
+  ProdOriginAccessControlId:
+    Description: 'Production CloudFront Origin Access Control ID'
+    Value: !GetAtt ProdOriginAccessControl.Id
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-oac-id'

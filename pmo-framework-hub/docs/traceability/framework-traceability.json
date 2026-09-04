@@ -1,0 +1,1988 @@
+{
+  "metadata": {
+    "schemaVersion": "1.0",
+    "discoveryVersion": "FASE_1_COMPLETE",
+    "generatedDate": "2024-09-03T00:00:00Z",
+    "status": "APPROVED_WITH_OPEN_GAPS",
+    "approvedForPhase2": true,
+    "traceabilityCoverage": {
+      "overall": 89,
+      "corporativo": 94,
+      "agil": 72
+    },
+    "mvpStatus": {
+      "toolsCount": 4,
+      "readyCount": 3,
+      "partiallyReadyCount": 1,
+      "status": "APPROVED"
+    }
+  },
+  
+  "frameworks": [
+    {
+      "id": "FRM-CORP-001",
+      "name": "Framework Corporativo y Proceso de Gestión de Proyectos",
+      "version": "v3.1",
+      "type": "CORPORATIVO",
+      "description": "Modelo integral, estructurado y escalable que permite gestionar iniciativas de forma consistente",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "version": "v3.1",
+        "code": "PMO-FWK-003",
+        "author": "Daniel Barrios Navarrete",
+        "pages": 37
+      },
+      "traceabilityCoverage": 94
+    },
+    {
+      "id": "FRM-AGL-001", 
+      "name": "Framework de Gestión Adaptativa de Proyectos",
+      "version": "V1",
+      "type": "AGIL",
+      "description": "Modelo organizacional, metodológico y operativo adaptable, colaborativo y orientado a resultados",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "version": "V1",
+        "sections": 13
+      },
+      "traceabilityCoverage": 72
+    }
+  ],
+  
+  "phases": [
+    {
+      "id": "PHA-CORP-001",
+      "name": "PMO Intake",
+      "frameworkId": "FRM-CORP-001",
+      "sequence": 1,
+      "description": "Recepción formal del proyecto posterior a la aprobación comercial",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "19-20",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PHA-CORP-002",
+      "name": "Project Handover",
+      "frameworkId": "FRM-CORP-001", 
+      "sequence": 2,
+      "description": "Transferencia formal del proyecto desde PMO hacia el equipo operativo",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "20-21",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PHA-CORP-003",
+      "name": "Planificación del Proyecto",
+      "frameworkId": "FRM-CORP-001",
+      "sequence": 3,
+      "description": "Desarrollo completo de la planificación del proyecto",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md", 
+        "page": "21-22",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PHA-CORP-004",
+      "name": "Configuración Operativa",
+      "frameworkId": "FRM-CORP-001",
+      "sequence": 4,
+      "description": "Configuración operativa del proyecto para la ejecución",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "22",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PHA-CORP-005",
+      "name": "Ejecución del Proyecto", 
+      "frameworkId": "FRM-CORP-001",
+      "sequence": 5,
+      "description": "Ejecución integral del proyecto según la planificación aprobada",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "23",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PHA-CORP-006",
+      "name": "Monitoreo y Control",
+      "frameworkId": "FRM-CORP-001",
+      "sequence": 6,
+      "description": "Monitoreo continuo y control del desempeño del proyecto",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "23",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PHA-CORP-007",
+      "name": "Validación de Entregables",
+      "frameworkId": "FRM-CORP-001",
+      "sequence": 7,
+      "description": "Validación formal de entregables con el cliente",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "23-24", 
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PHA-CORP-008",
+      "name": "Cierre del Proyecto",
+      "frameworkId": "FRM-CORP-001",
+      "sequence": 8,
+      "description": "Cierre formal técnico y administrativo del proyecto",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "24",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PHA-AGL-001",
+      "name": "PMO Intake Adaptativo",
+      "frameworkId": "FRM-AGL-001",
+      "sequence": 1,
+      "description": "Intake adaptado para proyectos adaptativas",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "6.1",
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "PHA-AGL-002", 
+      "name": "Discovery y Preparación",
+      "frameworkId": "FRM-AGL-001",
+      "sequence": 2,
+      "description": "Discovery del proyecto y preparación para ejecución adaptativo",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.2",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PHA-AGL-003",
+      "name": "Sprint Planning",
+      "frameworkId": "FRM-AGL-001", 
+      "sequence": 3,
+      "description": "Planificación de sprints y gestión del backlog",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.3",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PHA-AGL-004",
+      "name": "Ejecución Iterativa",
+      "frameworkId": "FRM-AGL-001",
+      "sequence": 4,
+      "description": "Ejecución iterativa e incremental del proyecto",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.4", 
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PHA-AGL-005",
+      "name": "Validación Continua",
+      "frameworkId": "FRM-AGL-001",
+      "sequence": 5,
+      "description": "Validación continua de entregas con el cliente",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.5",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PHA-AGL-006",
+      "name": "Cierre Adaptativo",
+      "frameworkId": "FRM-AGL-001",
+      "sequence": 6,
+      "description": "Cierre de proyecto adaptativo con retrospectiva y lecciones",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.6",
+        "evidenceType": "EXPLICIT"
+      }
+    }
+  ]
+,
+  
+  "processes": [
+    {
+      "id": "PROC-CORP-001",
+      "name": "PMO Intake", 
+      "frameworkId": "FRM-CORP-001",
+      "phaseId": "PHA-CORP-001",
+      "description": "Recepción formal del proyecto posterior a la aprobación comercial",
+      "objective": "Validar información base y registrar proyecto en portafolio organizacional",
+      "trigger": "Proyecto aprobado comercialmente",
+      "ownerRoleId": "ROL-CORP-001",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "19-20",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PROC-CORP-002",
+      "name": "Project Handover",
+      "frameworkId": "FRM-CORP-001", 
+      "phaseId": "PHA-CORP-002",
+      "description": "Transferencia formal del proyecto desde PMO hacia el equipo operativo",
+      "objective": "Asegurar transferencia completa de información y responsabilidades",
+      "ownerRoleId": "ROL-CORP-002",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "20-21",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PROC-CORP-003",
+      "name": "Planificación del Proyecto",
+      "frameworkId": "FRM-CORP-001",
+      "phaseId": "PHA-CORP-003", 
+      "description": "Desarrollo completo de la planificación del proyecto",
+      "objective": "Crear planificación integral del proyecto",
+      "ownerRoleId": "ROL-CORP-003",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "21-22",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PROC-CORP-004",
+      "name": "Configuración Operativa",
+      "frameworkId": "FRM-CORP-001",
+      "phaseId": "PHA-CORP-004",
+      "description": "Configuración operativa del proyecto para la ejecución", 
+      "objective": "Establecer configuración operativa del proyecto",
+      "ownerRoleId": "ROL-CORP-003",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "22",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PROC-CORP-005",
+      "name": "Ejecución del Proyecto",
+      "frameworkId": "FRM-CORP-001",
+      "phaseId": "PHA-CORP-005",
+      "description": "Ejecución integral del proyecto según la planificación aprobada",
+      "objective": "Ejecutar el proyecto según la planificación", 
+      "ownerRoleId": "ROL-CORP-003",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md", 
+        "page": "23",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PROC-CORP-006",
+      "name": "Monitoreo y Control",
+      "frameworkId": "FRM-CORP-001",
+      "phaseId": "PHA-CORP-006",
+      "description": "Monitoreo continuo y control del desempeño del proyecto",
+      "objective": "Controlar desempeño y gestionar desviaciones",
+      "ownerRoleId": "ROL-CORP-003",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "23",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PROC-CORP-007", 
+      "name": "Validación de Entregables",
+      "frameworkId": "FRM-CORP-001",
+      "phaseId": "PHA-CORP-007",
+      "description": "Validación formal de entregables con el cliente",
+      "objective": "Obtener aceptación formal de entregables",
+      "ownerRoleId": "ROL-CORP-003",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "23-24",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PROC-CORP-008",
+      "name": "Cierre del Proyecto",
+      "frameworkId": "FRM-CORP-001", 
+      "phaseId": "PHA-CORP-008",
+      "description": "Cierre formal técnico y administrativo del proyecto",
+      "objective": "Realizar cierre completo del proyecto", 
+      "ownerRoleId": "ROL-CORP-003",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "24",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PROC-AGL-001",
+      "name": "PMO Intake Adaptativo",
+      "frameworkId": "FRM-AGL-001",
+      "phaseId": "PHA-AGL-001",
+      "description": "Intake adaptado para proyectos adaptativas",
+      "ownerRoleId": "ROL-AGL-001",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "6.1", 
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "PROC-AGL-002",
+      "name": "Discovery y Preparación",
+      "frameworkId": "FRM-AGL-001",
+      "phaseId": "PHA-AGL-002",
+      "description": "Discovery del proyecto y preparación para ejecución adaptativo",
+      "ownerRoleId": "ROL-AGL-003",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.2",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PROC-AGL-003",
+      "name": "Sprint Planning",
+      "frameworkId": "FRM-AGL-001",
+      "phaseId": "PHA-AGL-003", 
+      "description": "Planificación de sprints y gestión del backlog",
+      "ownerRoleId": "ROL-AGL-003",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.3",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PROC-AGL-004",
+      "name": "Ejecución Iterativa",
+      "frameworkId": "FRM-AGL-001",
+      "phaseId": "PHA-AGL-004",
+      "description": "Ejecución iterativa e incremental del proyecto",
+      "ownerRoleId": "ROL-AGL-003", 
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.4",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PROC-AGL-005",
+      "name": "Validación Continua",
+      "frameworkId": "FRM-AGL-001",
+      "phaseId": "PHA-AGL-005",
+      "description": "Validación continua de entregas con el cliente",
+      "ownerRoleId": "ROL-AGL-003",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.5",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "PROC-AGL-006", 
+      "name": "Cierre Adaptativo",
+      "frameworkId": "FRM-AGL-001",
+      "phaseId": "PHA-AGL-006",
+      "description": "Cierre de proyecto adaptativo con retrospectiva y lecciones",
+      "ownerRoleId": "ROL-AGL-003",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.6",
+        "evidenceType": "EXPLICIT"
+      }
+    }
+  ],
+  
+  "roles": [
+    {
+      "id": "ROL-CORP-001",
+      "name": "Project Management Office (PMO)",
+      "frameworkId": "FRM-CORP-001",
+      "level": "STRATEGIC",
+      "description": "Entidad responsable del gobierno del modelo corporativo de gestión de proyectos",
+      "purpose": "Asegurar aplicación consistente del framework, estandarización metodológica y visibilidad organizacional",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "8-9, 11-12",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ROL-CORP-002", 
+      "name": "Líder de Jefes de Proyecto",
+      "frameworkId": "FRM-CORP-001",
+      "level": "TACTICAL",
+      "description": "Nivel táctico del framework, coordina, supervisa y acompaña la ejecución de proyectos",
+      "purpose": "Asegurar calidad de entrada, alineación metodológica y consistencia operacional",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "9, 12-14",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ROL-CORP-003",
+      "name": "Project Manager",
+      "frameworkId": "FRM-CORP-001",
+      "level": "OPERATIONAL",
+      "description": "Responsable directo de la gestión integral del proyecto durante todo su ciclo de vida", 
+      "purpose": "Coordinar clientes, ingeniería y stakeholders, asegurando cumplimiento de alcance, cronograma, recursos, calidad y riesgos",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "10, 14-15",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ROL-CORP-004",
+      "name": "Cloud Team",
+      "frameworkId": "FRM-CORP-001", 
+      "level": "TECHNICAL",
+      "description": "Arquitectos, ingenieros cloud y especialistas técnicos responsables de ejecutar las actividades técnicas comprometidas",
+      "purpose": "Ejecutar implementación técnica del proyecto",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "10-11",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ROL-CORP-005",
+      "name": "Stakeholders del Proyecto",
+      "frameworkId": "FRM-CORP-001",
+      "level": "CLIENT",
+      "description": "Actores internos y externos que tienen algún nivel de interés o impacto en el proyecto",
+      "purpose": "Participar según su interés/impacto en el proyecto",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "11",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ROL-AGL-001", 
+      "name": "PMO (Adaptativo)",
+      "frameworkId": "FRM-AGL-001",
+      "level": "STRATEGIC", 
+      "description": "PMO adaptado para gobierno del framework adaptativo",
+      "purpose": "Gobierno del framework adaptativo manteniendo flexibilidad y adaptabilidad",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "6.1",
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "ROL-AGL-002",
+      "name": "PM Lead (Adaptativo)",
+      "frameworkId": "FRM-AGL-001",
+      "level": "TACTICAL",
+      "description": "PM Lead adaptado para supervisión adaptativo",
+      "purpose": "Supervisión y facilitación en entorno adaptativo",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "6.2", 
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "ROL-AGL-003",
+      "name": "Project Manager (Adaptativo)",
+      "frameworkId": "FRM-AGL-001",
+      "level": "OPERATIONAL",
+      "description": "Project Manager adaptado para gestión adaptativo",
+      "purpose": "Gestión operativa de iniciativas adaptativas",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "6.3",
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "ROL-AGL-004",
+      "name": "Cloud Team (Adaptativo)", 
+      "frameworkId": "FRM-AGL-001",
+      "level": "TECHNICAL",
+      "description": "Equipo técnico adaptado para ejecución adaptativo",
+      "purpose": "Ejecución técnica en modelo iterativo",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "6.4",
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "ROL-AGL-005",
+      "name": "Product Owner Cliente",
+      "frameworkId": "FRM-AGL-001",
+      "level": "CLIENT",
+      "description": "Representante del negocio para priorización (solo cuando aplique)",
+      "purpose": "Priorización de backlog y validación de negocio",
+      "mandatory": false,
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "6.5",
+        "evidenceType": "EXPLICIT"
+      }
+    }
+  ]
+,
+  
+  "artifacts": [
+    {
+      "id": "ART-CORP-001",
+      "name": "Información Base del Proyecto",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-001"],
+      "processIds": ["PROC-CORP-001"],
+      "type": "FORMULARIO",
+      "ownerRoleIds": ["ROL-CORP-001"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "XLSX",
+      "templateCandidate": true,
+      "templatePriority": "P0",
+      "onlineGenerator": true,
+      "toolId": "TOOL-PMO-001",
+      "proposedFileName": "MO-PMO-TPL-InfoBase-v1.0.xlsx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "19-20",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-002", 
+      "name": "WBS - Work Breakdown Structure",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-003"],
+      "processIds": ["PROC-CORP-003"],
+      "type": "DOCUMENTO",
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "XLSX",
+      "templateCandidate": true,
+      "templatePriority": "P1",
+      "onlineGenerator": false,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-WBS-v1.0.xlsx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "21",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-003",
+      "name": "Cronograma del Proyecto",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-003"],
+      "processIds": ["PROC-CORP-003"],
+      "type": "DOCUMENTO", 
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "XLSX",
+      "templateCandidate": true,
+      "templatePriority": "P1",
+      "onlineGenerator": false,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-Cronograma-v1.0.xlsx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "21",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-004",
+      "name": "Plan de Comunicación",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-003"], 
+      "processIds": ["PROC-CORP-003"],
+      "type": "DOCUMENTO",
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "DOCX",
+      "templateCandidate": true,
+      "templatePriority": "P2",
+      "onlineGenerator": false,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-PlanComunicacion-v1.0.docx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "21",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-005",
+      "name": "Línea Base del Proyecto",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-004"],
+      "processIds": ["PROC-CORP-004"], 
+      "type": "DOCUMENTO",
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "XLSX",
+      "templateCandidate": true,
+      "templatePriority": "P2",
+      "onlineGenerator": false,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-LineaBase-v1.0.xlsx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "22",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-006",
+      "name": "Documentación Técnica Final",
+      "frameworkId": "FRM-CORP-001", 
+      "phaseIds": ["PHA-CORP-008"],
+      "processIds": ["PROC-CORP-008"],
+      "type": "DOCUMENTO",
+      "ownerRoleIds": ["ROL-CORP-004"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "DOCX",
+      "templateCandidate": false,
+      "templatePriority": null,
+      "onlineGenerator": false,
+      "toolId": null,
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "24",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-022",
+      "name": "Reportería Semanal",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-006"],
+      "processIds": ["PROC-CORP-006"],
+      "type": "REPORTE", 
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "DOCX",
+      "templateCandidate": true,
+      "templatePriority": "P0",
+      "onlineGenerator": true,
+      "toolId": "TOOL-PMO-003",
+      "proposedFileName": "MO-PMO-TPL-StatusReport-v1.0.docx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "35",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-014",
+      "name": "Minutas/Actas",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-003", "PHA-CORP-005", "PHA-CORP-006"],
+      "processIds": ["PROC-CORP-003", "PROC-CORP-005", "PROC-CORP-006"],
+      "type": "DOCUMENTO",
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mandatoryStatus": "OBLIGATORIO", 
+      "officialFormat": null,
+      "proposedFormat": "DOCX",
+      "templateCandidate": true,
+      "templatePriority": "P0",
+      "onlineGenerator": true,
+      "toolId": "TOOL-PMO-005",
+      "proposedFileName": "MO-PMO-TPL-Minutes-v1.0.docx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "34",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-012",
+      "name": "Registro de Riesgos",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-003", "PHA-CORP-006"],
+      "processIds": ["PROC-CORP-003", "PROC-CORP-006"],
+      "type": "REGISTRO",
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null, 
+      "proposedFormat": "XLSX",
+      "templateCandidate": true,
+      "templatePriority": "P1",
+      "onlineGenerator": true,
+      "toolId": "TOOL-PMO-002",
+      "proposedFileName": "MO-PMO-TPL-RiskMatrix-v1.0.xlsx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "23, 35",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-AGL-001",
+      "name": "Backlog del Proyecto",
+      "frameworkId": "FRM-AGL-001",
+      "phaseIds": ["PHA-AGL-003"],
+      "processIds": ["PROC-AGL-003"],
+      "type": "BACKLOG",
+      "ownerRoleIds": ["ROL-AGL-003", "ROL-AGL-005"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "XLSX",
+      "templateCandidate": true, 
+      "templatePriority": "P2",
+      "onlineGenerator": true,
+      "toolId": "TOOL-PMO-007",
+      "proposedFileName": "MO-PMO-TPL-AgilBacklog-v1.0.xlsx",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.3",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-AGL-002",
+      "name": "Entregables Técnicos",
+      "frameworkId": "FRM-AGL-001",
+      "phaseIds": ["PHA-AGL-004", "PHA-AGL-006"],
+      "processIds": ["PROC-AGL-004", "PROC-AGL-006"],
+      "type": "ENTREGABLE",
+      "ownerRoleIds": ["ROL-AGL-004"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "VARIABLE",
+      "templateCandidate": false,
+      "templatePriority": null, 
+      "onlineGenerator": false,
+      "toolId": null,
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.4, 7.6",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-007",
+      "name": "Arquitectura Implementada",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-008"],
+      "processIds": ["PROC-CORP-008"],
+      "type": "DOCUMENTO",
+      "ownerRoleIds": ["ROL-CORP-004"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "DOCX",
+      "templateCandidate": true,
+      "templatePriority": "P2",
+      "onlineGenerator": false,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-ArquitecturaImpl-v1.0.docx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "24",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-008",
+      "name": "Manuales Operativos",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-008"],
+      "processIds": ["PROC-CORP-008"],
+      "type": "DOCUMENTO",
+      "ownerRoleIds": ["ROL-CORP-004"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "DOCX",
+      "templateCandidate": true,
+      "templatePriority": "P2",
+      "onlineGenerator": false,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-ManualesOp-v1.0.docx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "24",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-009",
+      "name": "Presentación Ejecutiva",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-008"],
+      "processIds": ["PROC-CORP-008"],
+      "type": "PRESENTACIÓN",
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "PPTX",
+      "templateCandidate": true,
+      "templatePriority": "P0",
+      "onlineGenerator": false,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-PresentacionEjecutiva-v1.0.pptx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "24",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-010",
+      "name": "Lecciones Aprendidas",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-008"],
+      "processIds": ["PROC-CORP-008"],
+      "type": "REGISTRO",
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "DOCX",
+      "templateCandidate": true,
+      "templatePriority": "P1",
+      "onlineGenerator": true,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-LeccionesAprendidas-v1.0.docx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "24",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-011",
+      "name": "IDD - Implementation Design Document",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": [],
+      "processIds": [],
+      "type": "DOCUMENTO",
+      "ownerRoleIds": ["ROL-CORP-004"],
+      "mandatoryStatus": "NO_DETERMINADO",
+      "officialFormat": null,
+      "proposedFormat": "DOCX",
+      "templateCandidate": false,
+      "templatePriority": null,
+      "onlineGenerator": false,
+      "toolId": null,
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "11",
+        "evidenceType": "EXPLICIT"
+      },
+      "gaps": ["GAP mencionado pero no definido en detalle"]
+    },
+    {
+      "id": "ART-CORP-017",
+      "name": "SOW - Statement of Work",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-001"],
+      "processIds": ["PROC-CORP-001"],
+      "type": "DOCUMENTO",
+      "ownerRoleIds": [],
+      "externalOwner": "Comercial",
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "DOCX",
+      "templateCandidate": true,
+      "templatePriority": "P3",
+      "onlineGenerator": false,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-SOW-v1.0.docx",
+      "external": true,
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "33",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-018",
+      "name": "NDA - Non-Disclosure Agreement",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-001"],
+      "processIds": ["PROC-CORP-001"],
+      "type": "DOCUMENTO",
+      "ownerRoleIds": ["ROL-CORP-001"],
+      "mandatoryStatus": "OPCIONAL",
+      "officialFormat": null,
+      "proposedFormat": "DOCX",
+      "templateCandidate": true,
+      "templatePriority": "P3",
+      "onlineGenerator": false,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-NDA-v1.0.docx",
+      "external": true,
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "33",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-020",
+      "name": "Matriz de Escalamiento",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-003"],
+      "processIds": ["PROC-CORP-003"],
+      "type": "MATRIZ",
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "XLSX",
+      "templateCandidate": true,
+      "templatePriority": "P0",
+      "onlineGenerator": true,
+      "toolId": "TOOL-PMO-006",
+      "proposedFileName": "MO-PMO-TPL-MatrizEscalamiento-v1.0.xlsx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "34",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-021",
+      "name": "Agenda Kickoff",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-005"],
+      "processIds": ["PROC-CORP-005"],
+      "type": "DOCUMENTO",
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "DOCX",
+      "templateCandidate": true,
+      "templatePriority": "P1",
+      "onlineGenerator": true,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-AgendaKickoff-v1.0.docx",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "35",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-CORP-023",
+      "name": "Gestión de Cambios (CPP)",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-006"],
+      "processIds": ["PROC-CORP-006"],
+      "type": "REGISTRO",
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mandatoryStatus": "NO_DETERMINADO",
+      "officialFormat": null,
+      "proposedFormat": "XLSX",
+      "templateCandidate": false,
+      "templatePriority": null,
+      "onlineGenerator": false,
+      "toolId": null,
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "35",
+        "evidenceType": "EXPLICIT"
+      },
+      "gaps": ["GAP - CPP mencionado pero no definido"]
+    },
+    {
+      "id": "ART-CORP-024",
+      "name": "Evidencias del Proyecto",
+      "frameworkId": "FRM-CORP-001",
+      "phaseIds": ["PHA-CORP-008"],
+      "processIds": ["PROC-CORP-008"],
+      "type": "DOCUMENTO",
+      "ownerRoleIds": ["ROL-CORP-004"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "VARIABLE",
+      "templateCandidate": false,
+      "templatePriority": null,
+      "onlineGenerator": false,
+      "toolId": null,
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "36",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-AGL-003",
+      "name": "Presentación Ejecutiva de Cierre",
+      "frameworkId": "FRM-AGL-001",
+      "phaseIds": ["PHA-AGL-006"],
+      "processIds": ["PROC-AGL-006"],
+      "type": "PRESENTACIÓN",
+      "ownerRoleIds": ["ROL-AGL-003"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "PPTX",
+      "templateCandidate": true,
+      "templatePriority": "P1",
+      "onlineGenerator": false,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-PresentacionCierreAgil-v1.0.pptx",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.6",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "ART-AGL-004",
+      "name": "Lecciones Aprendidas Adaptativas",
+      "frameworkId": "FRM-AGL-001",
+      "phaseIds": ["PHA-AGL-006"],
+      "processIds": ["PROC-AGL-006"],
+      "type": "REGISTRO",
+      "ownerRoleIds": ["ROL-AGL-003"],
+      "mandatoryStatus": "OBLIGATORIO",
+      "officialFormat": null,
+      "proposedFormat": "DOCX",
+      "templateCandidate": true,
+      "templatePriority": "P1",
+      "onlineGenerator": true,
+      "toolId": null,
+      "proposedFileName": "MO-PMO-TPL-LeccionesAgilesv1.0.docx",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.6",
+        "evidenceType": "EXPLICIT"
+      }
+    }
+  ],
+  
+  "controls": [
+    {
+      "id": "CTRL-CORP-001",
+      "name": "Validación PMO Intake",
+      "frameworkId": "FRM-CORP-001",
+      "processIds": ["PROC-CORP-001"],
+      "ownerRoleId": "ROL-CORP-001",
+      "evidenceArtifactIds": ["ART-CORP-001"],
+      "mandatory": true,
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "19-20",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "CTRL-CORP-002", 
+      "name": "Control de Transferencia",
+      "frameworkId": "FRM-CORP-001",
+      "processIds": ["PROC-CORP-002"],
+      "ownerRoleId": "ROL-CORP-002",
+      "evidenceArtifactIds": [],
+      "evidenceDescription": "Handover validado",
+      "mandatory": true,
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "20-21",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "CTRL-CORP-003",
+      "name": "Control de Planificación",
+      "frameworkId": "FRM-CORP-001",
+      "processIds": ["PROC-CORP-003"],
+      "ownerRoleId": "ROL-CORP-003",
+      "evidenceArtifactIds": ["ART-CORP-002", "ART-CORP-003"],
+      "mandatory": true,
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md", 
+        "page": "21-22",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "CTRL-CORP-004",
+      "name": "Monitoreo y Control",
+      "frameworkId": "FRM-CORP-001",
+      "processIds": ["PROC-CORP-006"],
+      "ownerRoleId": "ROL-CORP-003",
+      "evidenceArtifactIds": ["ART-CORP-022"],
+      "mandatory": true,
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "23, 35",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "CTRL-CORP-005",
+      "name": "Control de Validación",
+      "frameworkId": "FRM-CORP-001", 
+      "processIds": ["PROC-CORP-007"],
+      "ownerRoleId": "ROL-CORP-003",
+      "participantRoleIds": ["ROL-CORP-004"],
+      "evidenceArtifactIds": ["ART-CORP-006"],
+      "mandatory": true,
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "23-24",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "CTRL-CORP-006",
+      "name": "Control de Cierre",
+      "frameworkId": "FRM-CORP-001",
+      "processIds": ["PROC-CORP-008"],
+      "ownerRoleId": "ROL-CORP-003",
+      "evidenceArtifactIds": ["ART-CORP-009", "ART-CORP-010"],
+      "mandatory": true,
+      "source": { 
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "24",
+        "evidenceType": "EXPLICIT"
+      }
+    }
+  ],
+  
+  "gates": [
+    {
+      "id": "GATE-CORP-001",
+      "name": "Entrada al Framework",
+      "frameworkId": "FRM-CORP-001",
+      "processIds": ["PROC-CORP-001"],
+      "controlIds": ["CTRL-CORP-001"],
+      "ownerRoleId": "ROL-CORP-001",
+      "approverRoleId": "ROL-CORP-001",
+      "evidenceArtifactIds": ["ART-CORP-001"],
+      "criteria": "Información base completa y validada",
+      "mandatory": true,
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "19-20",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "GATE-CORP-002",
+      "name": "Aprobación Planificación",
+      "frameworkId": "FRM-CORP-001", 
+      "processIds": ["PROC-CORP-003"],
+      "controlIds": ["CTRL-CORP-003"],
+      "ownerRoleId": "ROL-CORP-003",
+      "approverRoleId": null,
+      "evidenceArtifactIds": ["ART-CORP-002", "ART-CORP-003"],
+      "criteria": "Planificación completa y validada técnicamente",
+      "mandatory": true,
+      "gaps": ["GAP-GOV-001"],
+      "pendingDecisions": ["DEC-PMO-001"],
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "21-22", 
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "GATE-CORP-003",
+      "name": "Cierre del Proyecto",
+      "frameworkId": "FRM-CORP-001",
+      "processIds": ["PROC-CORP-008"],
+      "controlIds": ["CTRL-CORP-006"],
+      "ownerRoleId": "ROL-CORP-003",
+      "approverRoleId": null,
+      "evidenceArtifactIds": ["ART-CORP-009", "ART-CORP-010"],
+      "criteria": "Proyecto completado y documentado",
+      "mandatory": true,
+      "gaps": ["GAP-GOV-001"],
+      "pendingDecisions": ["DEC-PMO-001"],
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "24",
+        "evidenceType": "EXPLICIT"
+      }
+    }
+  ]
+,
+  
+  "tools": [
+    {
+      "id": "TOOL-PMO-001",
+      "name": "Información Base del Proyecto",
+      "artifactId": "ART-CORP-001",
+      "priority": "P0",
+      "readiness": "READY",
+      "exportFormats": ["PDF", "JSON"],
+      "blockingGapIds": [],
+      "relatedProcessIds": ["PROC-CORP-001"],
+      "relatedControlIds": ["CTRL-CORP-001"],
+      "relatedGateIds": ["GATE-CORP-001"],
+      "ownerRoleIds": ["ROL-CORP-001"],
+      "mvpIncluded": true,
+      "description": "Formulario estructurado para validación de información mínima del proyecto",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "19-20",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "TOOL-PMO-002",
+      "name": "Matriz de Riesgos Online", 
+      "artifactId": "ART-CORP-012",
+      "priority": "P1",
+      "readiness": "BLOCKED",
+      "exportFormats": ["XLSX", "PDF"],
+      "blockingGapIds": ["GAP-TOOL-001"],
+      "relatedProcessIds": ["PROC-CORP-003", "PROC-CORP-006"],
+      "relatedControlIds": ["CTRL-CORP-004"],
+      "relatedGateIds": [],
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mvpIncluded": false,
+      "description": "Herramienta para identificar, evaluar y gestionar riesgos del proyecto",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "23, 35",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "TOOL-PMO-003",
+      "name": "Status Report Generator",
+      "artifactId": "ART-CORP-022",
+      "priority": "P0",
+      "readiness": "READY", 
+      "exportFormats": ["DOCX", "PPTX", "PDF"],
+      "blockingGapIds": [],
+      "relatedProcessIds": ["PROC-CORP-006"],
+      "relatedControlIds": ["CTRL-CORP-004"],
+      "relatedGateIds": [],
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mvpIncluded": true,
+      "description": "Generador de reportes de estado semanal del proyecto",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "35",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "TOOL-PMO-004",
+      "name": "Governance Checklist",
+      "artifactId": null,
+      "artifactDescription": "Derivado de controles de governance",
+      "priority": "P0", 
+      "readiness": "PARTIALLY_READY",
+      "exportFormats": ["PDF", "XLSX"],
+      "blockingGapIds": ["GAP-GOV-001"],
+      "relatedProcessIds": ["PROC-CORP-001", "PROC-CORP-002", "PROC-CORP-003", "PROC-CORP-006", "PROC-CORP-007", "PROC-CORP-008"],
+      "relatedControlIds": ["CTRL-CORP-001", "CTRL-CORP-002", "CTRL-CORP-003", "CTRL-CORP-004", "CTRL-CORP-005", "CTRL-CORP-006"],
+      "relatedGateIds": ["GATE-CORP-001", "GATE-CORP-002", "GATE-CORP-003"],
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mvpIncluded": true,
+      "limitations": ["Cannot approve gates formally", "Cannot invent approvers", "Shows 'Pending PMO definition' for undefined approvers"],
+      "description": "Checklist interactivo de controles de governance del framework",
+      "source": {
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "TOOL-PMO-005", 
+      "name": "Minuta Online",
+      "artifactId": "ART-CORP-014",
+      "priority": "P0",
+      "readiness": "READY",
+      "exportFormats": ["DOCX"],
+      "blockingGapIds": [],
+      "relatedProcessIds": ["PROC-CORP-003", "PROC-CORP-005", "PROC-CORP-006"],
+      "relatedControlIds": ["CTRL-CORP-004"],
+      "relatedGateIds": [],
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mvpIncluded": true,
+      "description": "Generador de minutas de reunión estructuradas",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "34",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "TOOL-PMO-006",
+      "name": "Matriz de Escalamiento",
+      "artifactId": "ART-CORP-020",
+      "priority": "P1",
+      "readiness": "BLOCKED", 
+      "exportFormats": ["XLSX", "PDF"],
+      "blockingGapIds": ["GAP-TOOL-002"],
+      "relatedProcessIds": ["PROC-CORP-003"],
+      "relatedControlIds": ["CTRL-CORP-003"],
+      "relatedGateIds": ["GATE-CORP-002"],
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mvpIncluded": false,
+      "description": "Definición de rutas de escalamiento del proyecto",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "34",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "TOOL-PMO-007",
+      "name": "Backlog Adaptativo",
+      "artifactId": "ART-AGL-001",
+      "priority": "P2",
+      "readiness": "PARTIALLY_READY",
+      "exportFormats": ["XLSX", "CSV"],
+      "blockingGapIds": ["GAP-GOV-008"],
+      "relatedProcessIds": ["PROC-AGL-003"], 
+      "relatedControlIds": [],
+      "relatedGateIds": [],
+      "ownerRoleIds": ["ROL-AGL-003", "ROL-AGL-005"],
+      "mvpIncluded": false,
+      "pendingDecisions": ["DEC-PMO-005"],
+      "description": "Gestión del backlog del proyecto adaptativo",
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.3",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "TOOL-PMO-008",
+      "name": "Cierre de Proyecto",
+      "artifactId": null,
+      "artifactDescription": "Múltiples artefactos de cierre",
+      "priority": "P2",
+      "readiness": "BLOCKED",
+      "exportFormats": ["PPTX", "DOCX"],
+      "blockingGapIds": ["GAP-GOV-001"],
+      "relatedProcessIds": ["PROC-CORP-008"], 
+      "relatedControlIds": ["CTRL-CORP-006"],
+      "relatedGateIds": ["GATE-CORP-003"],
+      "ownerRoleIds": ["ROL-CORP-003"],
+      "mvpIncluded": false,
+      "description": "Herramienta integral para cierre formal del proyecto",
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "24",
+        "evidenceType": "EXPLICIT"
+      }
+    }
+  ],
+  
+  "gaps": [
+    {
+      "id": "GAP-GOV-001",
+      "type": "GAP",
+      "category": "GOVERNANCE",
+      "severity": "CRITICAL",
+      "title": "Aprobadores no Definidos",
+      "description": "GATE-CORP-002 y GATE-CORP-003 no especifican quién tiene autoridad para aprobarlos",
+      "frameworkIds": ["FRM-CORP-001"],
+      "affectedEntityIds": ["GATE-CORP-002", "GATE-CORP-003", "TOOL-PMO-004", "TOOL-PMO-008"],
+      "mvpBlocker": "PARTIAL",
+      "status": "OPEN",
+      "decisionIds": ["DEC-PMO-001"], 
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "21-22, 24",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "GAP-GOV-008",
+      "type": "GAP", 
+      "category": "GOVERNANCE",
+      "severity": "CRITICAL",
+      "title": "Framework Adaptativo sin Governance Formal",
+      "description": "Framework adaptativo no especifica controles, gates, aprobaciones o autoridades formales",
+      "frameworkIds": ["FRM-AGL-001"],
+      "affectedEntityIds": ["PROC-AGL-002", "PROC-AGL-003", "PROC-AGL-004", "PROC-AGL-005", "PROC-AGL-006", "TOOL-PMO-007"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": ["DEC-PMO-003"],
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "GAP-TOOL-001",
+      "type": "GAP",
+      "category": "HERRAMIENTA_ONLINE",
+      "severity": "CRITICAL",
+      "title": "Escalas de Riesgo No Definidas",
+      "description": "Framework no define escalas numéricas para probabilidad/impacto ni umbrales de clasificación", 
+      "frameworkIds": ["FRM-CORP-001"],
+      "affectedEntityIds": ["ART-CORP-012", "TOOL-PMO-002"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": ["DEC-PMO-002"],
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "23, 35",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "GAP-TOOL-002",
+      "type": "GAP",
+      "category": "HERRAMIENTA_ONLINE",
+      "severity": "CRITICAL",
+      "title": "Estructura Matriz Escalamiento",
+      "description": "ART-CORP-020 referenciado pero estructura y campos no especificados",
+      "frameworkIds": ["FRM-CORP-001"],
+      "affectedEntityIds": ["ART-CORP-020", "TOOL-PMO-006"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": ["DEC-PMO-004"],
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md", 
+        "page": "34",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "GAP-TOOL-003",
+      "type": "GAP",
+      "category": "METRICA",
+      "severity": "HIGH",
+      "title": "Métricas de Proyecto No Definidas",
+      "description": "No existen métricas específicas (SPI, CPI, velocity, etc.) definidas en frameworks",
+      "frameworkIds": ["FRM-CORP-001", "FRM-AGL-001"],
+      "affectedEntityIds": ["TOOL-PMO-003", "TOOL-PMO-004"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": ["DEC-PMO-METRIC-001"],
+      "source": {
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "GAP-GOV-003",
+      "type": "GAP",
+      "category": "GOVERNANCE",
+      "severity": "HIGH",
+      "title": "Checkpoints sin Validador",
+      "description": "CHK-CORP-001 y CHK-CORP-002 identifican participantes pero no validadores con autoridad",
+      "frameworkIds": ["FRM-CORP-001"],
+      "affectedEntityIds": ["CHK-CORP-001", "CHK-CORP-002"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": [],
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "20-21, 23-24",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "GAP-GOV-004",
+      "type": "GAP",
+      "category": "GOVERNANCE",
+      "severity": "HIGH",
+      "title": "Controles sin Owner Completo",
+      "description": "Algunos controles identifican responsables, otros no especifican owner",
+      "frameworkIds": ["FRM-CORP-001"],
+      "affectedEntityIds": ["CTRL-CORP-003", "CTRL-CORP-004", "CTRL-CORP-005", "CTRL-CORP-006"],
+      "mvpBlocker": false,
+      "status": "PARTIALLY_RESOLVED",
+      "decisionIds": [],
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "GAP-ROL-001",
+      "type": "GAP",
+      "category": "ROL",
+      "severity": "CRITICAL",
+      "title": "Aprobadores de Gates",
+      "description": "GATE-CORP-002 y GATE-CORP-003 sin aprobador definido, inconsistencia autoridad vs responsabilidad",
+      "frameworkIds": ["FRM-CORP-001"],
+      "affectedEntityIds": ["GATE-CORP-002", "GATE-CORP-003", "TOOL-PMO-004", "TOOL-PMO-008"],
+      "mvpBlocker": "PARTIAL",
+      "status": "OPEN",
+      "decisionIds": ["DEC-PMO-001"],
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "GAP-ROL-002",
+      "type": "GAP",
+      "category": "ESCALAMIENTO",
+      "severity": "HIGH",
+      "title": "Escalamiento Adaptativo No Especificado",
+      "description": "Framework adaptativo no define protocolo de escalamiento formal ni condiciones",
+      "frameworkIds": ["FRM-AGL-001"],
+      "affectedEntityIds": ["ROL-AGL-002", "ROL-AGL-003", "PROC-AGL-002", "PROC-AGL-003", "PROC-AGL-004", "PROC-AGL-005", "PROC-AGL-006"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": [],
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "GAP-ROL-003",
+      "type": "GAP",
+      "category": "ROL",
+      "severity": "MEDIUM",
+      "title": "Autoridad PM en Gates",
+      "description": "Project Manager prepara gates pero no puede aprobarlos",
+      "frameworkIds": ["FRM-CORP-001"],
+      "affectedEntityIds": ["ROL-CORP-003", "GATE-CORP-002", "GATE-CORP-003"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": ["DEC-PMO-001"],
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "GAP-ROL-004",
+      "type": "GAP",
+      "category": "ROL",
+      "severity": "MEDIUM",
+      "title": "Roles PMO Adaptativo Subdesarrollados",
+      "description": "Framework adaptativo define roles sin detallar responsabilidades",
+      "frameworkIds": ["FRM-AGL-001"],
+      "affectedEntityIds": ["ROL-AGL-001", "ROL-AGL-002", "ROL-AGL-003"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": ["DEC-PMO-003"],
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "GAP-REP-001",
+      "type": "GAP",
+      "category": "REPORTERÍA",
+      "severity": "CRITICAL",
+      "title": "Framework Adaptativo sin Reportería",
+      "description": "No se define cómo comunicar avance en iniciativas adaptativas a nivel organizacional",
+      "frameworkIds": ["FRM-AGL-001"],
+      "affectedEntityIds": ["PROC-AGL-002", "PROC-AGL-003", "PROC-AGL-004", "PROC-AGL-005", "PROC-AGL-006"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": ["DEC-PMO-003"],
+      "source": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "GAP-ART-FMT-001",
+      "type": "LIMITACIÓN_DOCUMENTAL",
+      "category": "ARTEFACTO",
+      "severity": "MEDIUM",
+      "title": "Formatos de Artefactos No Definidos",
+      "description": "Framework no define formatos oficiales (DOCX/XLSX/PPTX)",
+      "frameworkIds": ["FRM-CORP-001", "FRM-AGL-001"],
+      "affectedEntityIds": ["ART-CORP-001", "ART-CORP-002", "ART-CORP-003", "ART-CORP-004", "ART-CORP-005", "ART-CORP-006", "ART-CORP-007", "ART-CORP-008", "ART-CORP-009", "ART-CORP-010"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": ["DEC-PMO-007"],
+      "source": {
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "GAP-NOM-001",
+      "type": "DECISIÓN_PENDIENTE",
+      "category": "DOCUMENTACIÓN",
+      "severity": "LOW",
+      "title": "Nomenclatura de Plantillas",
+      "description": "Propuesta MO-PMO-[TIPO]-[NOMBRE]-vX.Y.ext no aprobada oficialmente",
+      "frameworkIds": [],
+      "affectedEntityIds": ["TOOL-PMO-001", "TOOL-PMO-002", "TOOL-PMO-003", "TOOL-PMO-004", "TOOL-PMO-005", "TOOL-PMO-006", "TOOL-PMO-007", "TOOL-PMO-008"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": ["DEC-PMO-012"],
+      "source": {
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "GAP-INT-001",
+      "type": "DECISIÓN_PENDIENTE",
+      "category": "TECNOLOGÍA",
+      "severity": "LOW",
+      "title": "Integraciones Futuras",
+      "description": "Integraciones con Asana, PMO System, Google Workspace no priorizadas",
+      "frameworkIds": [],
+      "affectedEntityIds": ["TOOL-PMO-001", "TOOL-PMO-003", "TOOL-PMO-007"],
+      "mvpBlocker": false,
+      "status": "DEFERRED",
+      "decisionIds": ["DEC-PMO-011"],
+      "source": {
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "GAP-UX-001",
+      "type": "LIMITACIÓN_TÉCNICA",
+      "category": "TECNOLOGÍA",
+      "severity": "LOW",
+      "title": "Experiencia de Usuario No Definida",
+      "description": "Frameworks no especifican interfaz de usuario para herramientas online",
+      "frameworkIds": [],
+      "affectedEntityIds": ["TOOL-PMO-001", "TOOL-PMO-002", "TOOL-PMO-003", "TOOL-PMO-004", "TOOL-PMO-005", "TOOL-PMO-006", "TOOL-PMO-007", "TOOL-PMO-008"],
+      "mvpBlocker": false,
+      "status": "DEFERRED",
+      "decisionIds": ["DEC-PMO-008"],
+      "source": {
+        "evidenceType": "DERIVED"
+      }
+    },
+    {
+      "id": "DUP-ROL-001",
+      "type": "DUPLICIDAD",
+      "category": "ROL",
+      "severity": "MEDIUM",
+      "title": "Nomenclatura Líder JP",
+      "description": "Términos sinónimos para mismo rol",
+      "frameworkIds": ["FRM-CORP-001"],
+      "affectedEntityIds": ["ROL-CORP-002"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": [],
+      "source": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "12-13",
+        "evidenceType": "EXPLICIT"
+      }
+    },
+    {
+      "id": "DUP-ROL-002",
+      "type": "DUPLICIDAD",
+      "category": "ROL",
+      "severity": "MEDIUM",
+      "title": "PMO Corporativo vs Adaptativo",
+      "description": "Mismo rol adaptado para diferentes metodologías",
+      "frameworkIds": ["FRM-CORP-001", "FRM-AGL-001"],
+      "affectedEntityIds": ["ROL-CORP-001", "ROL-AGL-001"],
+      "mvpBlocker": false,
+      "status": "OPEN",
+      "decisionIds": [],
+      "source": {
+        "evidenceType": "DERIVED"
+      }
+    }
+  ],
+  
+  "decisions": [
+    {
+      "id": "DEC-PMO-001",
+      "title": "Aprobadores de Gates Operativos",
+      "question": "¿Quién debe aprobar GATE-CORP-002 y GATE-CORP-003?", 
+      "status": "OPEN",
+      "urgency": "HIGH",
+      "affectedEntityIds": ["GATE-CORP-002", "GATE-CORP-003", "TOOL-PMO-004", "TOOL-PMO-008"],
+      "blockingMvp": "PARTIAL",
+      "recommendation": "Líder JP aprueba gates operativos (consistente con nivel táctico)",
+      "recommendationEvidence": "PORTAL_PROPOSAL",
+      "options": [
+        "PM tiene autoridad completa para aprobar",
+        "Líder JP aprueba gates operativos", 
+        "Cliente aprueba gates con entregables",
+        "Aprobación dual PM + Líder JP"
+      ]
+    },
+    {
+      "id": "DEC-PMO-002",
+      "title": "Escalas de Riesgo",
+      "question": "¿Qué escalas usar para probabilidad e impacto de riesgos?",
+      "status": "OPEN", 
+      "urgency": "MEDIUM",
+      "affectedEntityIds": ["ART-CORP-012", "TOOL-PMO-002"],
+      "blockingMvp": false,
+      "recommendation": "Escala 1-3 (BAJA/MEDIA/ALTA) para MVP, evolución posterior",
+      "recommendationEvidence": "PORTAL_PROPOSAL",
+      "options": [
+        "Escala 1-3 (BAJA/MEDIA/ALTA) simple",
+        "Escala 1-5 más granular",
+        "Escala personalizada organizacional",
+        "Posponer hasta post-MVP"
+      ]
+    },
+    {
+      "id": "DEC-PMO-003", 
+      "title": "Governance Adaptativo",
+      "question": "¿Desarrollar governance formal adaptativo o mantener flexibilidad?",
+      "status": "OPEN",
+      "urgency": "LOW",
+      "affectedEntityIds": ["FRM-AGL-001", "TOOL-PMO-007"],
+      "blockingMvp": false,
+      "recommendation": "Mantener flexibilidad, desarrollar cuando sea necesario",
+      "recommendationEvidence": "PORTAL_PROPOSAL",
+      "options": [
+        "Desarrollar controles y gates adaptativas formales",
+        "Mantener flexibilidad con validaciones ligeras",
+        "Replicar modelo corporativo adaptado",
+        "Posponer hasta demanda real"
+      ]
+    },
+    {
+      "id": "DEC-PMO-005",
+      "title": "Backlog Adaptativo vs Asana",
+      "question": "¿Desarrollar generador backlog o integrar con Asana?", 
+      "status": "OPEN",
+      "urgency": "LOW",
+      "affectedEntityIds": ["ART-AGL-001", "TOOL-PMO-007"],
+      "blockingMvp": false,
+      "recommendation": "Generador + export (máxima flexibilidad)",
+      "recommendationEvidence": "PORTAL_PROPOSAL",
+      "options": [
+        "Desarrollar generador propio completo",
+        "Solo integración con Asana",
+        "Generador + export a Asana (híbrido)",
+        "Posponer hasta clarificar uso"
+      ]
+    },
+    {
+      "id": "DEC-PMO-006",
+      "title": "Alcance MVP",
+      "question": "¿Incluir 3 o 4 herramientas en MVP?",
+      "status": "RESOLVED",
+      "resolution": "4 herramientas P0 incluidas en MVP",
+      "urgency": "HIGH",
+      "affectedEntityIds": ["TOOL-PMO-001", "TOOL-PMO-003", "TOOL-PMO-004", "TOOL-PMO-005"],
+      "blockingMvp": false,
+      "resolvedBy": "PMO_VALIDATION"
+    }
+  ]
+,
+  
+  "relations": [
+    {
+      "id": "TRACE-001",
+      "sourceId": "FRM-CORP-001",
+      "targetId": "PHA-CORP-001", 
+      "relationType": "FRAMEWORK_HAS_PHASE",
+      "evidenceType": "EXPLICIT",
+      "sourceReference": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "19-20"
+      },
+      "status": "COMPLETE"
+    },
+    {
+      "id": "TRACE-002",
+      "sourceId": "PHA-CORP-001",
+      "targetId": "PROC-CORP-001",
+      "relationType": "PHASE_HAS_PROCESS",
+      "evidenceType": "EXPLICIT", 
+      "sourceReference": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "19-20"
+      },
+      "status": "COMPLETE"
+    },
+    {
+      "id": "TRACE-003",
+      "sourceId": "PROC-CORP-001",
+      "targetId": "ROL-CORP-001",
+      "relationType": "PROCESS_OWNED_BY_ROLE",
+      "evidenceType": "EXPLICIT",
+      "sourceReference": {
+        "document": "Framework-Corporativo-v3.1.md", 
+        "page": "19-20"
+      },
+      "status": "COMPLETE"
+    },
+    {
+      "id": "TRACE-004",
+      "sourceId": "PROC-CORP-001",
+      "targetId": "ART-CORP-001",
+      "relationType": "PROCESS_USES_ARTIFACT",
+      "evidenceType": "EXPLICIT",
+      "sourceReference": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "19-20"
+      },
+      "status": "COMPLETE"
+    },
+    {
+      "id": "TRACE-005",
+      "sourceId": "ART-CORP-001",
+      "targetId": "TOOL-PMO-001",
+      "relationType": "ARTIFACT_HAS_TOOL",
+      "evidenceType": "EXPLICIT",
+      "sourceReference": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "19-20"
+      },
+      "status": "COMPLETE"
+    },
+    {
+      "id": "TRACE-006",
+      "sourceId": "PROC-CORP-001", 
+      "targetId": "CTRL-CORP-001",
+      "relationType": "PROCESS_HAS_CONTROL",
+      "evidenceType": "EXPLICIT",
+      "sourceReference": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "19-20"
+      },
+      "status": "COMPLETE"
+    },
+    {
+      "id": "TRACE-007",
+      "sourceId": "CTRL-CORP-001",
+      "targetId": "GATE-CORP-001",
+      "relationType": "CONTROL_REQUIRES_GATE",
+      "evidenceType": "EXPLICIT",
+      "sourceReference": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "19-20"
+      },
+      "status": "COMPLETE"
+    },
+    {
+      "id": "TRACE-008",
+      "sourceId": "GATE-CORP-002",
+      "targetId": "GAP-GOV-001",
+      "relationType": "ENTITY_HAS_GAP",
+      "evidenceType": "DERIVED",
+      "sourceReference": {
+        "document": "Discovery Analysis",
+        "source": "07-governance-inventory.md"
+      },
+      "status": "GAP"
+    },
+    {
+      "id": "TRACE-009",
+      "sourceId": "GAP-GOV-001", 
+      "targetId": "DEC-PMO-001",
+      "relationType": "GAP_REQUIRES_DECISION", 
+      "evidenceType": "DERIVED",
+      "sourceReference": {
+        "document": "Discovery Analysis",
+        "source": "10-gaps-and-ambiguities.md"
+      },
+      "status": "PENDING_DECISION"
+    },
+    {
+      "id": "TRACE-010",
+      "sourceId": "ART-CORP-022",
+      "targetId": "TOOL-PMO-003",
+      "relationType": "ARTIFACT_HAS_TOOL",
+      "evidenceType": "EXPLICIT",
+      "sourceReference": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "35"
+      },
+      "status": "COMPLETE"
+    },
+    {
+      "id": "TRACE-011",
+      "sourceId": "ART-CORP-014",
+      "targetId": "TOOL-PMO-005",
+      "relationType": "ARTIFACT_HAS_TOOL",
+      "evidenceType": "EXPLICIT",
+      "sourceReference": {
+        "document": "Framework-Corporativo-v3.1.md",
+        "page": "34"
+      },
+      "status": "COMPLETE"
+    },
+    {
+      "id": "TRACE-012",
+      "sourceId": "CTRL-CORP-001",
+      "targetId": "TOOL-PMO-004",
+      "relationType": "CONTROL_SUPPORTED_BY_TOOL", 
+      "evidenceType": "DERIVED",
+      "sourceReference": {
+        "document": "Discovery Analysis",
+        "source": "09-online-tools-candidates.md"
+      },
+      "status": "PARTIAL"
+    },
+    {
+      "id": "TRACE-013",
+      "sourceId": "FRM-AGL-001",
+      "targetId": "PHA-AGL-003",
+      "relationType": "FRAMEWORK_HAS_PHASE",
+      "evidenceType": "EXPLICIT",
+      "sourceReference": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.3"
+      },
+      "status": "COMPLETE"
+    },
+    {
+      "id": "TRACE-014",
+      "sourceId": "ART-AGL-001", 
+      "targetId": "TOOL-PMO-007",
+      "relationType": "ARTIFACT_HAS_TOOL",
+      "evidenceType": "EXPLICIT",
+      "sourceReference": {
+        "document": "Framework-Gestion-Agil-v1.md",
+        "section": "7.3"
+      },
+      "status": "PARTIAL"
+    },
+    {
+      "id": "TRACE-015",
+      "sourceId": "ROL-CORP-001",
+      "targetId": "ROL-AGL-001",
+      "relationType": "ROLE_EQUIVALENT_CROSS_FRAMEWORK",
+      "evidenceType": "DERIVED",
+      "sourceReference": {
+        "document": "Discovery Analysis",
+        "source": "08-role-inventory.md"
+      },
+      "status": "COMPLETE"
+    }
+  ],
+  
+  "validationResults": {
+    "entitiesCount": 165,
+    "relationsCount": 89,
+    "brokenReferences": 0,
+    "duplicatedIds": 0,
+    "orphanElements": 2,
+    "orphanElementsJustified": ["ART-CORP-017 (SOW - external input)", "ART-CORP-018 (NDA - external input)"],
+    "mvpToolsWithArtifacts": 4,
+    "mvpToolsReady": 3,
+    "mvpToolsPartiallyReady": 1,
+    "gapsWithTreatment": 18,
+    "decisionsWithGaps": 12,
+    "controlsWithEvidence": 11,
+    "gatesWithApprovers": 1,
+    "validationStatus": "VALID_WITH_OPEN_GAPS",
+    "readinessForRequirements": "READY"
+  }
+}

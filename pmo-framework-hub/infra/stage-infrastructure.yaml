@@ -1,0 +1,230 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'PMO Framework Hub - Stage Environment Infrastructure'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'pmo-framework-hub'
+    Description: 'Project name for resource naming'
+  
+  Environment:
+    Type: String
+    Default: 'stage'
+    Description: 'Environment name'
+
+Resources:
+  # S3 Bucket for Stage Portal (Private)
+  StagePortalBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-${Environment}-portal-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      NotificationConfiguration:
+        CloudWatchConfigurations: []
+      
+  # CloudFront Origin Access Control
+  StageOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${ProjectName}-${Environment}-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # CloudFront Distribution for Stage
+  StageCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub '${ProjectName} ${Environment} Portal Distribution'
+        DefaultCacheBehavior:
+          TargetOriginId: !Sub '${ProjectName}-${Environment}-s3-origin'
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
+          Compress: true
+        Origins:
+          - Id: !Sub '${ProjectName}-${Environment}-s3-origin'
+            DomainName: !GetAtt StagePortalBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt StageOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        Enabled: true
+        DefaultRootObject: index.html
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 300
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 300
+        PriceClass: PriceClass_100
+        HttpVersion: http2
+        IPV6Enabled: true
+
+  # S3 Bucket Policy for CloudFront OAC
+  StagePortalBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref StagePortalBucket
+      PolicyDocument:
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipal
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${StagePortalBucket}/*'
+            Condition:
+              StringEquals:
+                'AWS:SourceArn': !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${StageCloudFrontDistribution}'
+
+  # Cognito User Pool for Stage Admin
+  StageCognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${ProjectName}-${Environment}-admin-pool'
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+        InviteMessageAction: SUPPRESS
+        TemporaryPasswordValidityDays: 7
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 7
+      MfaConfiguration: OPTIONAL
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: false
+        - Name: name
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      UserAttributeUpdateSettings:
+        AttributesRequireVerificationBeforeUpdate:
+          - email
+
+  # Cognito User Pool Client for Stage Admin
+  StageCognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref StageCognitoUserPool
+      ClientName: !Sub '${ProjectName}-${Environment}-admin-client'
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
+      RefreshTokenValidityUnits:
+        RefreshToken: days
+      AccessTokenValidityUnits:
+        AccessToken: hours
+      IdTokenValidityUnits:
+        IdToken: hours
+      RefreshTokenValidity: 30
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+
+  # Cognito User Pool Group - Site Admins
+  StageSiteAdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: SITE_ADMIN
+      Description: 'Site administrators with full access to admin panel'
+      UserPoolId: !Ref StageCognitoUserPool
+      Precedence: 1
+
+  # Lambda Execution Role for Admin API
+  StageAdminLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-admin-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3AdminAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt StagePortalBucket.Arn
+                  - !Sub '${StagePortalBucket}/*'
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                Resource: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${StageCloudFrontDistribution}'
+
+Outputs:
+  StagePortalBucket:
+    Description: 'Stage Portal S3 Bucket Name'
+    Value: !Ref StagePortalBucket
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-bucket'
+
+  StageCloudFrontDistribution:
+    Description: 'Stage CloudFront Distribution ID'
+    Value: !Ref StageCloudFrontDistribution
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-distribution-id'
+
+  StagePortalURL:
+    Description: 'Stage Portal CloudFront URL'
+    Value: !Sub 'https://${StageCloudFrontDistribution.DomainName}'
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-url'
+
+  StageCognitoUserPoolId:
+    Description: 'Stage Cognito User Pool ID'
+    Value: !Ref StageCognitoUserPool
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-user-pool-id'
+
+  StageCognitoClientId:
+    Description: 'Stage Cognito User Pool Client ID'
+    Value: !Ref StageCognitoUserPoolClient
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-client-id'
+
+  StageOriginAccessControlId:
+    Description: 'Stage CloudFront Origin Access Control ID'
+    Value: !GetAtt StageOriginAccessControl.Id
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-oac-id'
