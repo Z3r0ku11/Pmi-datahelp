@@ -1,0 +1,370 @@
+/* Phase 2 - Corporate PMO Dashboard Specific Styles */
+
+/* Corporate gradient backgrounds */
+.corporate-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.corporate-gradient-purple {
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+}
+
+.corporate-gradient-blue {
+  background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+}
+
+/* Executive dashboard animations */
+.metric-card-enter {
+  animation: slideInUp 0.6s ease-out;
+}
+
+.metric-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.dashboard-card-appear {
+  animation: fadeInScale 0.5s ease-out;
+}
+
+/* Project status cards */
+.project-card {
+  @apply dashboard-card-hover;
+  position: relative;
+  overflow: hidden;
+}
+
+.project-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  transition: opacity 0.3s ease;
+}
+
+.project-card.status-planning::before {
+  background: linear-gradient(90deg, #3b82f6, #1e40af);
+}
+
+.project-card.status-in-progress::before {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.project-card.status-at-risk::before {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.project-card.status-delayed::before {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.project-card.status-completed::before {
+  background: linear-gradient(90deg, #6b7280, #4b5563);
+}
+
+.project-card:hover::before {
+  opacity: 1;
+}
+
+/* Portfolio health indicators */
+.health-indicator {
+  @apply inline-flex items-center justify-center w-12 h-12 rounded-full font-bold text-white text-sm;
+}
+
+.health-indicator.excellent {
+  @apply bg-green-500;
+}
+
+.health-indicator.good {
+  @apply bg-blue-500;
+}
+
+.health-indicator.fair {
+  @apply bg-yellow-500;
+}
+
+.health-indicator.poor {
+  @apply bg-orange-500;
+}
+
+.health-indicator.critical {
+  @apply bg-red-500;
+}
+
+/* Interactive charts and visualizations */
+.chart-tooltip {
+  @apply absolute z-50 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 pointer-events-none;
+  transform: translate(-50%, -100%);
+  margin-top: -8px;
+}
+
+.chart-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 4px solid transparent;
+  border-top-color: #111827;
+  transform: translateX(-50%);
+}
+
+/* Dashboard filters */
+.filter-bar {
+  @apply sticky top-0 z-40 bg-white border-b border-gray-200 px-6 py-4;
+  backdrop-filter: blur(10px);
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
+.filter-dropdown {
+  @apply absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50;
+}
+
+.filter-dropdown-item {
+  @apply block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer;
+}
+
+.filter-dropdown-item.selected {
+  @apply bg-purple-50 text-purple-700;
+}
+
+/* Resource allocation visualization */
+.resource-bar {
+  @apply relative bg-gray-200 rounded-full h-4 overflow-hidden;
+}
+
+.resource-segment {
+  @apply h-full float-left transition-all duration-300;
+}
+
+.resource-segment.allocated {
+  @apply bg-blue-500;
+}
+
+.resource-segment.over-allocated {
+  @apply bg-red-500;
+}
+
+.resource-segment.available {
+  @apply bg-green-500;
+}
+
+/* Timeline and milestones */
+.milestone-marker {
+  @apply absolute w-4 h-4 bg-purple-600 rounded-full border-2 border-white shadow-sm;
+  transform: translateX(-50%);
+}
+
+.milestone-marker.completed {
+  @apply bg-green-500;
+}
+
+.milestone-marker.overdue {
+  @apply bg-red-500;
+}
+
+.milestone-marker.upcoming {
+  @apply bg-yellow-500;
+}
+
+.timeline-bar {
+  @apply relative h-2 bg-gray-200 rounded-full overflow-hidden;
+}
+
+.timeline-progress {
+  @apply h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-500;
+}
+
+/* Burndown and velocity charts */
+.burndown-line {
+  stroke: #3b82f6;
+  stroke-width: 2;
+  fill: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.ideal-line {
+  stroke: #6b7280;
+  stroke-width: 1;
+  stroke-dasharray: 5,5;
+  fill: none;
+}
+
+.velocity-bar {
+  @apply transition-all duration-300 hover:opacity-80;
+}
+
+/* Risk heat map */
+.risk-heatmap {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  background: #f3f4f6;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.risk-heatmap-cell {
+  @apply aspect-square rounded flex items-center justify-center text-xs font-medium cursor-pointer transition-all duration-200;
+}
+
+.risk-heatmap-cell:hover {
+  transform: scale(1.1);
+}
+
+.risk-heatmap-cell.risk-1 { @apply bg-green-200 text-green-800; }
+.risk-heatmap-cell.risk-2 { @apply bg-yellow-200 text-yellow-800; }
+.risk-heatmap-cell.risk-3 { @apply bg-orange-200 text-orange-800; }
+.risk-heatmap-cell.risk-4 { @apply bg-red-200 text-red-800; }
+.risk-heatmap-cell.risk-5 { @apply bg-red-400 text-red-900; }
+
+/* Executive summary cards */
+.executive-summary {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8;
+}
+
+.summary-card {
+  @apply dashboard-card text-center relative overflow-hidden;
+}
+
+.summary-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient);
+}
+
+.summary-card.projects::after {
+  --gradient: linear-gradient(90deg, #3b82f6, #1e40af);
+}
+
+.summary-card.budget::after {
+  --gradient: linear-gradient(90deg, #10b981, #059669);
+}
+
+.summary-card.timeline::after {
+  --gradient: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.summary-card.team::after {
+  --gradient: linear-gradient(90deg, #8b5cf6, #7c3aed);
+}
+
+/* Data visualization responsiveness */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .projects-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .chart-container {
+    height: 200px;
+  }
+}
+
+@media (max-width: 640px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .filter-bar {
+    padding: 1rem;
+  }
+  
+  .data-table {
+    font-size: 0.875rem;
+  }
+}
+
+/* Print styles for executive reports */
+@media print {
+  .sidebar {
+    display: none !important;
+  }
+  
+  .filter-bar {
+    display: none !important;
+  }
+  
+  main {
+    margin-left: 0 !important;
+  }
+  
+  .dashboard-card {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+  
+  .chart-container {
+    height: 300px;
+  }
+  
+  .project-card {
+    break-inside: avoid;
+  }
+}
+
+/* Accessibility improvements */
+.focus-visible {
+  @apply outline-none ring-2 ring-purple-500 ring-offset-2;
+}
+
+.screen-reader-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .dashboard-card {
+    border: 2px solid #000;
+  }
+  
+  .status-indicator {
+    border: 1px solid currentColor;
+  }
+  
+  .priority-indicator {
+    border: 1px solid currentColor;
+  }
+}

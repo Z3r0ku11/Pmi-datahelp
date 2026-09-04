@@ -1,0 +1,26 @@
+# PMI-DataHelp Code Owners
+# Global owners for all files
+* @pmo-team
+
+# Infrastructure changes require additional approval
+/infrastructure/ @devops-team @pmo-team
+/scripts/ @devops-team @pmo-team
+
+# Phase 1 - Educational Portal
+/phase1/ @frontend-team @pmo-team
+
+# Phase 2 - Corporate PMO Dashboard
+/phase2/ @pmo-team @executive-team
+
+# Shared components and utilities
+/shared/ @frontend-team @pmo-team
+
+# CI/CD and deployment configurations
+buildspec.yml @devops-team
+.github/ @devops-team @pmo-team
+Dockerfile @devops-team
+docker-compose.yml @devops-team
+
+# Documentation
+README.md @pmo-team
+docs/ @pmo-team

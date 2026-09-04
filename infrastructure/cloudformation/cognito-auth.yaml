@@ -1,0 +1,371 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'PMI-DataHelp Cognito Authentication Infrastructure'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+  
+  ProjectName:
+    Type: String
+    Default: pmi-datahelp
+    Description: Project name for resource naming
+  
+  AdminEmail:
+    Type: String
+    Description: Email address for the initial admin user
+    Default: admin@pmi-datahelp.com
+  
+  DomainName:
+    Type: String
+    Default: pmi-datahelp.com
+    Description: Domain name for callback URLs
+
+Mappings:
+  EnvironmentMap:
+    dev:
+      PasswordPolicyMinLength: 8
+      PasswordPolicyRequireNumbers: true
+      PasswordPolicyRequireSymbols: false
+      PasswordPolicyRequireUppercase: true
+      PasswordPolicyRequireLowercase: true
+      MfaConfiguration: OPTIONAL
+      SelfSignUpEnabled: true
+    staging:
+      PasswordPolicyMinLength: 8
+      PasswordPolicyRequireNumbers: true
+      PasswordPolicyRequireSymbols: true
+      PasswordPolicyRequireUppercase: true
+      PasswordPolicyRequireLowercase: true
+      MfaConfiguration: OPTIONAL
+      SelfSignUpEnabled: true
+    prod:
+      PasswordPolicyMinLength: 12
+      PasswordPolicyRequireNumbers: true
+      PasswordPolicyRequireSymbols: true
+      PasswordPolicyRequireUppercase: true
+      PasswordPolicyRequireLowercase: true
+      MfaConfiguration: ON
+      SelfSignUpEnabled: false
+
+Resources:
+  # Cognito User Pool
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${ProjectName}-users-${Environment}'
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      MfaConfiguration: !FindInMap [EnvironmentMap, !Ref Environment, MfaConfiguration]
+      MfaConfigurationStatus: !FindInMap [EnvironmentMap, !Ref Environment, MfaConfiguration]
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
+        - SMS_MFA
+      PasswordPolicy:
+        MinimumLength: !FindInMap [EnvironmentMap, !Ref Environment, PasswordPolicyMinLength]
+        RequireNumbers: !FindInMap [EnvironmentMap, !Ref Environment, PasswordPolicyRequireNumbers]
+        RequireSymbols: !FindInMap [EnvironmentMap, !Ref Environment, PasswordPolicyRequireSymbols]
+        RequireUppercase: !FindInMap [EnvironmentMap, !Ref Environment, PasswordPolicyRequireUppercase]
+        RequireLowercase: !FindInMap [EnvironmentMap, !Ref Environment, PasswordPolicyRequireLowercase]
+        TemporaryPasswordValidityDays: 7
+      Policies:
+        PasswordPolicy:
+          MinimumLength: !FindInMap [EnvironmentMap, !Ref Environment, PasswordPolicyMinLength]
+          RequireNumbers: !FindInMap [EnvironmentMap, !Ref Environment, PasswordPolicyRequireNumbers]
+          RequireSymbols: !FindInMap [EnvironmentMap, !Ref Environment, PasswordPolicyRequireSymbols]
+          RequireUppercase: !FindInMap [EnvironmentMap, !Ref Environment, PasswordPolicyRequireUppercase]
+          RequireLowercase: !FindInMap [EnvironmentMap, !Ref Environment, PasswordPolicyRequireLowercase]
+          TemporaryPasswordValidityDays: 7
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: !If [IsProd, true, !FindInMap [EnvironmentMap, !Ref Environment, SelfSignUpEnabled]]
+        InviteMessageAction: EMAIL
+        TemporaryPasswordValidityDays: 7
+      DeviceConfiguration:
+        ChallengeRequiredOnNewDevice: true
+        DeviceOnlyRememberedOnUserPrompt: false
+      UserAttributeUpdateSettings:
+        AttributesRequireVerificationBeforeUpdate:
+          - email
+      UserPoolTags:
+        Project: !Ref ProjectName
+        Environment: !Ref Environment
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: true
+          AttributeDataType: String
+        - Name: name
+          Required: true
+          Mutable: true
+          AttributeDataType: String
+        - Name: role
+          Required: false
+          Mutable: true
+          AttributeDataType: String
+        - Name: department
+          Required: false
+          Mutable: true
+          AttributeDataType: String
+        - Name: phase_access
+          Required: false
+          Mutable: true
+          AttributeDataType: String
+
+  # Cognito User Pool Groups
+  Phase1UsersGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: phase1-users
+      Description: Users with access to Phase 1 (Educational Portal)
+      UserPoolId: !Ref UserPool
+      Precedence: 100
+
+  Phase2UsersGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: phase2-users
+      Description: Users with access to Phase 2 (Corporate PMO Dashboard)
+      UserPoolId: !Ref UserPool
+      Precedence: 50
+
+  PMOAdminsGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: pmo-admins
+      Description: PMO Administrators with full access
+      UserPoolId: !Ref UserPool
+      Precedence: 1
+
+  ExecutivesGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: executives
+      Description: Executive users with dashboard access
+      UserPoolId: !Ref UserPool
+      Precedence: 10
+
+  # Cognito User Pool Client for Phase 1
+  Phase1UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub '${ProjectName}-phase1-client-${Environment}'
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_CUSTOM_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+        - Google
+      CallbackURLs:
+        - !If [IsProd, !Sub 'https://${DomainName}/callback', !Sub 'https://${Environment}.${DomainName}/callback']
+        - !If [IsProd, !Sub 'https://edu.${DomainName}/callback', !Sub 'https://edu.${Environment}.${DomainName}/callback']
+        - http://localhost:3001/callback
+      LogoutURLs:
+        - !If [IsProd, !Sub 'https://${DomainName}/logout', !Sub 'https://${Environment}.${DomainName}/logout']
+        - !If [IsProd, !Sub 'https://edu.${DomainName}/logout', !Sub 'https://edu.${Environment}.${DomainName}/logout']
+        - http://localhost:3001/logout
+      AllowedOAuthFlows:
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+        - phone
+      AllowedOAuthFlowsUserPoolClient: true
+      RefreshTokenValidity: 30
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      TokenValidityUnits:
+        RefreshToken: days
+        AccessToken: minutes
+        IdToken: minutes
+      ReadAttributes:
+        - email
+        - name
+        - phone_number
+        - custom:role
+        - custom:department
+        - custom:phase_access
+      WriteAttributes:
+        - email
+        - name
+        - phone_number
+
+  # Cognito User Pool Client for Phase 2
+  Phase2UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub '${ProjectName}-phase2-client-${Environment}'
+      UserPoolId: !Ref UserPool
+      GenerateSecret: true
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_CUSTOM_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs:
+        - !If [IsProd, !Sub 'https://pmo.${DomainName}/callback', !Sub 'https://pmo.${Environment}.${DomainName}/callback']
+        - http://localhost:3002/callback
+      LogoutURLs:
+        - !If [IsProd, !Sub 'https://pmo.${DomainName}/logout', !Sub 'https://pmo.${Environment}.${DomainName}/logout']
+        - http://localhost:3002/logout
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+        - phone
+      AllowedOAuthFlowsUserPoolClient: true
+      RefreshTokenValidity: 1
+      AccessTokenValidity: 30
+      IdTokenValidity: 30
+      TokenValidityUnits:
+        RefreshToken: days
+        AccessToken: minutes
+        IdToken: minutes
+      ReadAttributes:
+        - email
+        - name
+        - phone_number
+        - custom:role
+        - custom:department
+        - custom:phase_access
+      WriteAttributes:
+        - email
+        - name
+        - phone_number
+
+  # Cognito User Pool Domain
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub '${ProjectName}-auth-${Environment}-${AWS::AccountId}'
+      UserPoolId: !Ref UserPool
+
+  # Google Identity Provider
+  GoogleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Properties:
+      UserPoolId: !Ref UserPool
+      ProviderName: Google
+      ProviderType: Google
+      ProviderDetails:
+        client_id: 'your-google-client-id.apps.googleusercontent.com'
+        client_secret: 'your-google-client-secret'
+        authorize_scopes: 'email openid profile'
+      AttributeMapping:
+        email: email
+        name: name
+        picture: picture
+        username: sub
+
+  # Identity Pool for additional AWS access (if needed)
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: !Sub '${ProjectName}_identity_pool_${Environment}'
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId: !Ref Phase1UserPoolClient
+          ProviderName: !GetAtt UserPool.ProviderName
+        - ClientId: !Ref Phase2UserPoolClient
+          ProviderName: !GetAtt UserPool.ProviderName
+
+  # IAM Role for authenticated users
+  CognitoAuthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action:
+              - sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref IdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+      Policies:
+        - PolicyName: CognitoAuthorizedPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - mobileanalytics:PutEvents
+                  - cognito-sync:*
+                  - cognito-identity:*
+                Resource: '*'
+
+  # Attach roles to identity pool
+  IdentityPoolRoleMapping:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref IdentityPool
+      Roles:
+        authenticated: !GetAtt CognitoAuthenticatedRole.Arn
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+
+Outputs:
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub '${AWS::StackName}-UserPoolId'
+
+  Phase1UserPoolClientId:
+    Description: Cognito User Pool Client ID for Phase 1
+    Value: !Ref Phase1UserPoolClient
+    Export:
+      Name: !Sub '${AWS::StackName}-Phase1UserPoolClientId'
+
+  Phase2UserPoolClientId:
+    Description: Cognito User Pool Client ID for Phase 2
+    Value: !Ref Phase2UserPoolClient
+    Export:
+      Name: !Sub '${AWS::StackName}-Phase2UserPoolClientId'
+
+  Phase2UserPoolClientSecret:
+    Description: Cognito User Pool Client Secret for Phase 2
+    Value: !GetAtt Phase2UserPoolClient.ClientSecret
+    Export:
+      Name: !Sub '${AWS::StackName}-Phase2UserPoolClientSecret'
+
+  IdentityPoolId:
+    Description: Cognito Identity Pool ID
+    Value: !Ref IdentityPool
+    Export:
+      Name: !Sub '${AWS::StackName}-IdentityPoolId'
+
+  UserPoolDomain:
+    Description: Cognito User Pool Domain
+    Value: !Sub 'https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com'
+    Export:
+      Name: !Sub '${AWS::StackName}-UserPoolDomain'
+
+  UserPoolArn:
+    Description: Cognito User Pool ARN
+    Value: !GetAtt UserPool.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-UserPoolArn'
